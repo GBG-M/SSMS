@@ -24,8 +24,9 @@ function Register() {
     })
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
+
     setError("")
 
     if (
@@ -39,30 +40,25 @@ function Register() {
       return
     }
 
-    if (formData.password !== formData.confirm_password) {
-      setError("Passwords do not match.")
-      return
-    }
-
     if (formData.password.length < 8) {
       setError("Password must contain at least 8 characters.")
       return
     }
 
+    if (formData.password !== formData.confirm_password) {
+      setError("Passwords do not match.")
+      return
+    }
+
     setLoading(true)
 
-    try {
-      // Backend API will be connected here later.
-      console.log("Registration data:", formData)
+    // TEMPORARY FRONTEND REGISTRATION
+    // Backend API will be connected later.
 
-      setTimeout(() => {
-        setLoading(false)
-        navigate("/login")
-      }, 800)
-    } catch (error) {
+    setTimeout(() => {
       setLoading(false)
-      setError("Registration failed. Please try again.")
-    }
+      navigate("/login")
+    }, 800)
   }
 
   return (
@@ -71,6 +67,7 @@ function Register() {
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg p-8">
 
         <div className="text-center mb-8">
+
           <h1 className="text-3xl font-bold text-blue-600">
             SSMS
           </h1>
@@ -78,6 +75,7 @@ function Register() {
           <p className="text-gray-500 mt-2">
             Create your account
           </p>
+
         </div>
 
         {error && (
@@ -91,6 +89,7 @@ function Register() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div>
+
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 First Name
               </label>
@@ -103,9 +102,11 @@ function Register() {
                 placeholder="First name"
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
+
             </div>
 
             <div>
+
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Last Name
               </label>
@@ -118,11 +119,13 @@ function Register() {
                 placeholder="Last name"
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
+
             </div>
 
           </div>
 
           <div>
+
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email
             </label>
@@ -135,14 +138,17 @@ function Register() {
               placeholder="Enter your email"
               className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             />
+
           </div>
 
           <div>
+
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
 
             <div className="relative">
+
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
@@ -159,15 +165,19 @@ function Register() {
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
+
             </div>
+
           </div>
 
           <div>
+
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Confirm Password
             </label>
 
             <div className="relative">
+
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 name="confirm_password"
@@ -186,7 +196,9 @@ function Register() {
               >
                 {showConfirmPassword ? "Hide" : "Show"}
               </button>
+
             </div>
+
           </div>
 
           <button
@@ -200,16 +212,20 @@ function Register() {
         </form>
 
         <div className="text-center mt-6 text-gray-600">
+
           Already have an account?{" "}
+
           <Link
             to="/login"
             className="font-semibold text-blue-600 hover:underline"
           >
             Login
           </Link>
+
         </div>
 
       </div>
+
     </div>
   )
 }

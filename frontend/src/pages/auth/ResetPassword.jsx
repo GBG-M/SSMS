@@ -1,15 +1,16 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
-function Login() {
+function ResetPassword() {
   const navigate = useNavigate()
 
   const [formData, setFormData] = useState({
-    email: "",
     password: "",
+    confirmPassword: "",
   })
 
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -25,21 +26,29 @@ function Login() {
 
     setError("")
 
-    if (!formData.email || !formData.password) {
+    if (!formData.password || !formData.confirmPassword) {
       setError("Please fill in all fields.")
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must contain at least 8 characters.")
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match.")
       return
     }
 
     setLoading(true)
 
-    // TEMPORARY FRONTEND LOGIN
-    // We will replace this with Django API later.
+    // TEMPORARY
+    // Backend API will be connected later.
 
     setTimeout(() => {
-      localStorage.setItem("access_token", "temporary-token")
-
       setLoading(false)
-      navigate("/dashboard")
+      navigate("/login")
     }, 800)
   }
 
@@ -54,22 +63,18 @@ function Login() {
             SSMS
           </h1>
 
-          <p className="text-gray-500 mt-2">
-            School Management System
-          </p>
-
           <h2 className="text-2xl font-semibold text-gray-800 mt-6">
-            Welcome Back
+            Reset Password
           </h2>
 
-          <p className="text-gray-500 mt-1">
-            Login to your account
+          <p className="text-gray-500 mt-2">
+            Create a new password.
           </p>
 
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-100 text-red-700 px-4 py-3">
+          <div className="mb-5 rounded-lg bg-red-100 text-red-700 px-4 py-3">
             {error}
           </div>
         )}
@@ -79,24 +84,7 @@ function Login() {
           <div>
 
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-            />
-
-          </div>
-
-          <div>
-
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
+              New Password
             </label>
 
             <div className="relative">
@@ -106,7 +94,7 @@ function Login() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Enter your password"
+                placeholder="Enter new password"
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-20 outline-none focus:ring-2 focus:ring-blue-500"
               />
 
@@ -122,14 +110,34 @@ function Login() {
 
           </div>
 
-          <div className="text-right">
+          <div>
 
-            <Link
-              to="/forgot-password"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              Forgot password?
-            </Link>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm Password
+            </label>
+
+            <div className="relative">
+
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Confirm new password"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-20 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowConfirmPassword(!showConfirmPassword)
+                }
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-blue-600"
+              >
+                {showConfirmPassword ? "Hide" : "Show"}
+              </button>
+
+            </div>
 
           </div>
 
@@ -138,20 +146,18 @@ function Login() {
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Resetting..." : "Reset Password"}
           </button>
 
         </form>
 
-        <div className="text-center mt-6 text-gray-600">
-
-          Don't have an account?{" "}
+        <div className="text-center mt-6">
 
           <Link
-            to="/register"
+            to="/login"
             className="font-semibold text-blue-600 hover:underline"
           >
-            Register
+            Back to Login
           </Link>
 
         </div>
@@ -162,4 +168,4 @@ function Login() {
   )
 }
 
-export default Login
+export default ResetPassword
