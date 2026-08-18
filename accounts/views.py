@@ -1,75 +1,103 @@
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect
-from django.views import View
-from django.http import JsonResponse
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-
+from rest_framework.authtoken.models import Token # Or use SimpleJWT tokens
 from .models import User, Role
+from .serializers import LoginSerializer, PasswordResetSerializer
 from .signals import provision_student_account
-
-
-class LoginView(View):
-    """Custom Login View verifying TOTP and Forced Password Resets."""
-    template_name = 'accounts/login.html'
-
-    def get(self, request):
-        return render(request, self.template_name)
+class LoginAPIView(APIView):
+    """
+    API equivalent of LoginView verifying TOTP and Forced Password Resets.
+    """
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        serializer = LoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data.get('email')
+        password = serializer.validated_data.get('password')
         
         user = authenticate(request, email=email, password=password)
         
         if user is not None:
             # Check mandatory password reset
             if user.must_reset_password:
-                request.session['pre_auth_user_id'] = str(user.id)
-                return redirect('accounts:force_password_reset')
+                # Generate a secure temporary token for password reset workflow
+                token = Token.objects.create(user=user) if 'authtoken' in request.resolver_match.app_name else str(user.id)
+                cache.set(f'pre_auth_user_{user.id}', str(user.id), timeout=300) # 5 minutes expiry
+                return Response({
+                    'status': 'password_reset_required',
+                    'message': 'Mandatory password reset required before login.',
+                    'pre_auth_user_id': str(user.id)
+                }, status=status.HTTP_200_OK)
             
             # Check mandatory TOTP for sensitive roles
             if user.requires_totp:
                 if not user.totp_enabled:
-                    request.session['pre_auth_user_id'] = str(user.id)
-                    return redirect('accounts:setup_totp')
+                    return Response({
+                        'status': 'totp_setup_required',
+                        'message': 'TOTP setup required.',
+                        'pre_auth_user_id': str(user.id)
+                    }, status=status.HTTP_200_OK)
                 else:
-                    request.session['pre_auth_user_id'] = str(user.id)
-                    return redirect('accounts:verify_totp')
+                    return Response ({
+                        'status': 'totp_verification_required',
+                        'message': 'TOTP verification required.',
+                        'pre_auth_user_id': str(user.id)
+                    }, status=status.HTTP_200_OK)
 
+            # Successful login (creates session or token)
             login(request, user)
-            return redirect('dashboard')
+            token, _ = Token.objects.get_or_create(user=user)
+            
+            return Response({
+                'message': 'Login successful.',
+                'token': token.key,
+                'email': user.emailHTTP_200_OK
+            }, status=status.HTTP_200_OK)
         
-        return render(request, self.template_name, {'error': 'Invalid email or password.'})
+        return Response({'error': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-class ForcePasswordResetView(View):
-    """Enforces mandatory password reset on first login."""
-    template_name = 'accounts/password_reset.html'
-
-    def get(self, request):
-        if 'pre_auth_user_id' not in request.session:
-            return redirect('accounts:login')
-        return render(request, self.template_name)
+class ForcePasswordResetAPIView(APIView):
+    """
+    API equivalent for enforcing mandatory password reset on first login.
+    """
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        user_id = request.session.get('pre_auth_user_id')
-        user = User.objects.filter(id=user_id).first()
-        new_password = request.POST.get('new_password')
+        serializer = PasswordResetSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if user and new_password:
+        user_id = serializer.validated_data.get('pre_auth_token')
+        new_password = serializer.validated_data.get('new_password')
+        
+        cached_user_id = cache.get(f'pre_auth_user_{user_id}')
+        if not cached_user_id:
+            return Response({'error': 'Invalid or expired pre-auth session.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(id=user_id).first()
+        if user:
             user.set_password(new_password)
             user.must_reset_password = False
             user.save()
             
-            # Log in the user after password update
-            login(request, user)
-            del request.session['pre_auth_user_id']
-            return redirect('dashboard')
+            # Clear pre-auth cache
+            cache.delete(f'pre_auth_user_{user_id}')
+            
+            # Authenticate and issue token
+            token, _ = Token.objects.get_or_create(user=user)
+            return Response({
+                'message': 'Password updated successfully.',
+                'token': token.key
+            }, status=status.HTTP_200_OK)
 
-        return render(request, self.template_name, {'error': 'Failed to update password.'})
+        return Response({'error': 'Failed to update password.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProvisionStudentAccountAPIView(APIView):
@@ -80,7 +108,6 @@ class ProvisionStudentAccountAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        # Enforce Coordinator or Admin role permission
         if not request.user.roles.filter(name__in=[Role.ADMIN, Role.ACADEMIC_COORDINATOR]).exists():
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -110,7 +137,16 @@ class ProvisionStudentAccountAPIView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LogoutView(View):
-    def get(self, request):
+class LogoutAPIView(APIView):
+    """
+    API endpoint to log out and destroy token/session.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # Delete token if using DRF Token auth
+        if hasattr(request.user, 'auth_token'):
+            request.user.auth_token.delete()
+        
         logout(request)
-        return redirect('accounts:login')
+        return Response({'message': 'Successfully logged out.'}, status=status.HTTP_200_OK)
