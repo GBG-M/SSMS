@@ -21,7 +21,7 @@ class LoginAPIView(APIView):
         email = serializer.validated_data.get('email')
         password = serializer.validated_data.get('password')
         
-        user = authenticate(request, email=email, password=password)
+        user = authenticate(request, username=email, password=password)
         
         if user is not None:
             # Check mandatory password reset
@@ -57,7 +57,7 @@ class LoginAPIView(APIView):
             return Response({
                 'message': 'Login successful.',
                 'token': token.key,
-                'email': user.emailHTTP_200_OK
+                'email': user.email,
             }, status=status.HTTP_200_OK)
         
         return Response({'error': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
