@@ -247,8 +247,7 @@ class UserListAPIView(generics.ListCreateAPIView):
             'count': queryset.count(),
             'users': serializer.data
         })
-
-
+        
 class UserDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update or delete a user (Admin only)
