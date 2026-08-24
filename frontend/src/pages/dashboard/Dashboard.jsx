@@ -1,43 +1,36 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import LogoutButton from "../../components/LogoutButton"
+import { useNavigate } from 'react-router-dom'
+import { logout } from '../../services/authService'
 
-function Dashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+export default function Dashboard() {
+  const navigate = useNavigate()
+
+  const email =
+    localStorage.getItem('userEmail') ||
+    'User'
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div className="min-h-screen bg-slate-100">
 
       {/* Sidebar */}
-      <aside
-        className={`
-          fixed left-0 top-0 z-40 h-screen w-64
-          bg-slate-900 text-white
-          transform transition-transform duration-300
-          lg:translate-x-0
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
+      <aside className="fixed inset-y-0 left-0 hidden w-64 bg-slate-900 text-white lg:block">
 
-        {/* Logo */}
-        <div className="flex h-20 items-center border-b border-slate-700 px-6">
+        <div className="flex h-20 items-center border-b border-slate-800 px-6">
 
           <div className="flex items-center gap-3">
 
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold">
-              S
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
+              <span className="font-bold">
+                S
+              </span>
             </div>
 
             <div>
-              <h1 className="text-lg font-bold">
+              <h1 className="font-bold">
                 SSMS
               </h1>
 
@@ -51,509 +44,358 @@ function Dashboard() {
         </div>
 
         {/* Navigation */}
-        <nav className="mt-6 px-4">
+        <nav className="space-y-1 px-4 py-6">
 
-          <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Main Menu
-          </p>
+          <a
+            href="#"
+            className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium"
+          >
+            <span className="mr-3">
+              🏠
+            </span>
 
-          <div className="space-y-2">
+            Dashboard
+          </a>
 
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-3 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium"
-            >
-              <span>🏠</span>
-              Dashboard
-            </Link>
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              👨‍🎓
+            </span>
 
-            <Link
-              to="#"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <span>👨‍🎓</span>
-              Students
-            </Link>
+            Students
+          </a>
 
-            <Link
-              to="#"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <span>📚</span>
-              Academics
-            </Link>
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              📚
+            </span>
 
-            <Link
-              to="#"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <span>💰</span>
-              Finance
-            </Link>
+            Academics
+          </a>
 
-            <Link
-              to="#"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <span>📅</span>
-              Scheduling
-            </Link>
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              💰
+            </span>
 
-            <Link
-              to="#"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <span>🔔</span>
-              Notifications
-            </Link>
+            Finance
+          </a>
 
-          </div>
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              📅
+            </span>
 
-          <p className="mb-3 mt-8 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            System
-          </p>
-
-          <div className="space-y-2">
-
-            <Link
-              to="#"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <span>⚙️</span>
-              Settings
-            </Link>
-
-          </div>
+            Scheduling
+          </a>
 
         </nav>
 
-        {/* Logout */}
-        <div className="absolute bottom-6 left-4 right-4">
-
-          <LogoutButton />
-
-        </div>
-
       </aside>
 
-      {/* Main content */}
+      {/* Main area */}
       <div className="lg:ml-64">
 
-        {/* Header */}
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-gray-200 bg-white px-4 shadow-sm sm:px-6">
+        {/* Top Header */}
+        <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
+
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">
+              Dashboard
+            </h2>
+
+            <p className="text-sm text-slate-500">
+              Welcome back to SSMS
+            </p>
+          </div>
 
           <div className="flex items-center gap-4">
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 lg:hidden"
-            >
-              ☰
-            </button>
-
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">
-                Dashboard
-              </h2>
-
-              <p className="hidden text-sm text-gray-500 sm:block">
-                Overview of your school
-              </p>
-            </div>
-
-          </div>
-
-          {/* User */}
-          <div className="flex items-center gap-3">
-
-            <button className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100">
-              🔔
-
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-            </button>
-
+            {/* User */}
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-gray-800">
-                Admin User
+
+              <p className="text-sm font-semibold text-slate-800">
+                {email}
               </p>
 
-              <p className="text-xs text-gray-500">
-                Administrator
+              <p className="text-xs text-slate-500">
+                School User
               </p>
+
             </div>
 
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-600">
-              A
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
+              {email.charAt(0).toUpperCase()}
             </div>
+
+            <button
+              onClick={handleLogout}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              Logout
+            </button>
 
           </div>
 
         </header>
 
-        {/* Dashboard content */}
-        <main className="p-4 sm:p-6">
+        {/* Dashboard Content */}
+        <main className="p-6">
 
-          {/* Welcome section */}
-          <section className="mb-6 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 p-6 text-white shadow-lg">
+          {/* Welcome */}
+          <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-white shadow-lg">
 
-            <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+            <p className="mb-2 text-sm font-medium text-blue-100">
+              School Management System
+            </p>
 
-              <div>
+            <h1 className="text-3xl font-bold">
+              Welcome back! 👋
+            </h1>
 
-                <p className="mb-1 text-blue-100">
-                  Welcome back 👋
-                </p>
+            <p className="mt-2 max-w-2xl text-blue-100">
+              Manage students, academics, finance,
+              scheduling, and other school activities
+              from one place.
+            </p>
 
-                <h1 className="text-2xl font-bold sm:text-3xl">
-                  Good morning, Admin!
-                </h1>
-
-                <p className="mt-2 max-w-xl text-sm text-blue-100">
-                  Here's what's happening in your school today.
-                </p>
-
-              </div>
-
-              <div className="rounded-xl bg-white/10 px-5 py-4 backdrop-blur-sm">
-
-                <p className="text-sm text-blue-100">
-                  Academic Year
-                </p>
-
-                <p className="text-lg font-bold">
-                  2025 / 2026
-                </p>
-
-              </div>
-
-            </div>
-
-          </section>
+          </div>
 
           {/* Statistics */}
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
-            {/* Students */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
 
               <div className="flex items-center justify-between">
 
                 <div>
-                  <p className="text-sm text-gray-500">
-                    Total Students
+                  <p className="text-sm text-slate-500">
+                    Students
                   </p>
 
-                  <h3 className="mt-2 text-2xl font-bold text-gray-800">
-                    1,245
-                  </h3>
-
-                  <p className="mt-2 text-xs text-green-600">
-                    ↑ 8.2% from last month
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
                   </p>
                 </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-2xl">
+                <div className="rounded-xl bg-blue-100 p-3 text-2xl">
                   👨‍🎓
                 </div>
 
               </div>
 
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
+
             </div>
 
-            {/* Teachers */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
 
               <div className="flex items-center justify-between">
 
                 <div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-500">
                     Teachers
                   </p>
 
-                  <h3 className="mt-2 text-2xl font-bold text-gray-800">
-                    68
-                  </h3>
-
-                  <p className="mt-2 text-xs text-green-600">
-                    ↑ 3 new this month
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
                   </p>
                 </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-2xl">
+                <div className="rounded-xl bg-green-100 p-3 text-2xl">
                   👨‍🏫
                 </div>
 
               </div>
 
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
+
             </div>
 
-            {/* Attendance */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
 
               <div className="flex items-center justify-between">
 
                 <div>
-                  <p className="text-sm text-gray-500">
-                    Attendance
+                  <p className="text-sm text-slate-500">
+                    Classes
                   </p>
 
-                  <h3 className="mt-2 text-2xl font-bold text-gray-800">
-                    94.5%
-                  </h3>
-
-                  <p className="mt-2 text-xs text-green-600">
-                    ↑ 2.4% this week
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
                   </p>
                 </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-2xl">
+                <div className="rounded-xl bg-purple-100 p-3 text-2xl">
+                  📚
+                </div>
+
+              </div>
+
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
+
+            </div>
+
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+                  <p className="text-sm text-slate-500">
+                    Attendance
+                  </p>
+
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-orange-100 p-3 text-2xl">
                   📊
                 </div>
 
               </div>
 
-            </div>
-
-            {/* Classes */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-
-              <div className="flex items-center justify-between">
-
-                <div>
-                  <p className="text-sm text-gray-500">
-                    Active Classes
-                  </p>
-
-                  <h3 className="mt-2 text-2xl font-bold text-gray-800">
-                    42
-                  </h3>
-
-                  <p className="mt-2 text-xs text-gray-500">
-                    Across grades 1–12
-                  </p>
-                </div>
-
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-2xl">
-                  🏫
-                </div>
-
-              </div>
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
 
             </div>
 
-          </section>
+          </div>
 
-          {/* Lower section */}
-          <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+          {/* Modules */}
+          <div className="mt-8">
 
-            {/* Recent Activity */}
-            <div className="rounded-2xl bg-white p-6 shadow-sm xl:col-span-2">
+            <h2 className="mb-4 text-xl font-bold text-slate-900">
+              System Modules
+            </h2>
 
-              <div className="mb-5 flex items-center justify-between">
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 
-                <div>
-                  <h2 className="font-bold text-gray-800">
-                    Recent Activity
-                  </h2>
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
 
-                  <p className="text-sm text-gray-500">
-                    Latest school activities
-                  </p>
+                <div className="mb-4 text-3xl">
+                  👨‍🎓
                 </div>
 
-                <button className="text-sm font-medium text-blue-600 hover:underline">
-                  View all
-                </button>
+                <h3 className="font-bold text-slate-900">
+                  Student Management
+                </h3>
 
-              </div>
-
-              <div className="space-y-4">
-
-                <div className="flex items-start gap-4 rounded-xl bg-gray-50 p-4">
-
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                    👨‍🎓
-                  </div>
-
-                  <div className="flex-1">
-
-                    <p className="text-sm font-medium text-gray-800">
-                      New student registered
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      Student registration was completed successfully.
-                    </p>
-
-                    <p className="mt-2 text-xs text-gray-400">
-                      10 minutes ago
-                    </p>
-
-                  </div>
-
-                </div>
-
-                <div className="flex items-start gap-4 rounded-xl bg-gray-50 p-4">
-
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
-                    📚
-                  </div>
-
-                  <div className="flex-1">
-
-                    <p className="text-sm font-medium text-gray-800">
-                      Grades updated
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      Mathematics grades for Grade 10 were updated.
-                    </p>
-
-                    <p className="mt-2 text-xs text-gray-400">
-                      35 minutes ago
-                    </p>
-
-                  </div>
-
-                </div>
-
-                <div className="flex items-start gap-4 rounded-xl bg-gray-50 p-4">
-
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100">
-                    🔔
-                  </div>
-
-                  <div className="flex-1">
-
-                    <p className="text-sm font-medium text-gray-800">
-                      Announcement published
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      A new announcement was sent to parents.
-                    </p>
-
-                    <p className="mt-2 text-xs text-gray-400">
-                      1 hour ago
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* Performance */}
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
-
-              <div className="mb-6">
-
-                <h2 className="font-bold text-gray-800">
-                  Academic Performance
-                </h2>
-
-                <p className="text-sm text-gray-500">
-                  Overall school performance
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage student profiles, admissions,
+                  and documentation.
                 </p>
 
               </div>
 
-              <div className="flex flex-col items-center">
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
 
-                <div className="flex h-40 w-40 items-center justify-center rounded-full border-[16px] border-blue-500">
-
-                  <div className="text-center">
-
-                    <p className="text-3xl font-bold text-gray-800">
-                      87%
-                    </p>
-
-                    <p className="text-xs text-gray-500">
-                      Average
-                    </p>
-
-                  </div>
-
+                <div className="mb-4 text-3xl">
+                  📚
                 </div>
 
-                <div className="mt-6 w-full space-y-4">
+                <h3 className="font-bold text-slate-900">
+                  Academic Management
+                </h3>
 
-                  <div>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage classes, subjects, grades,
+                  and academic results.
+                </p>
 
-                    <div className="mb-1 flex justify-between text-sm">
+              </div>
 
-                      <span className="text-gray-600">
-                        Mathematics
-                      </span>
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
 
-                      <span className="font-semibold">
-                        89%
-                      </span>
-
-                    </div>
-
-                    <div className="h-2 rounded-full bg-gray-200">
-
-                      <div className="h-2 w-[89%] rounded-full bg-blue-500" />
-
-                    </div>
-
-                  </div>
-
-                  <div>
-
-                    <div className="mb-1 flex justify-between text-sm">
-
-                      <span className="text-gray-600">
-                        English
-                      </span>
-
-                      <span className="font-semibold">
-                        85%
-                      </span>
-
-                    </div>
-
-                    <div className="h-2 rounded-full bg-gray-200">
-
-                      <div className="h-2 w-[85%] rounded-full bg-green-500" />
-
-                    </div>
-
-                  </div>
-
-                  <div>
-
-                    <div className="mb-1 flex justify-between text-sm">
-
-                      <span className="text-gray-600">
-                        Science
-                      </span>
-
-                      <span className="font-semibold">
-                        88%
-                      </span>
-
-                    </div>
-
-                    <div className="h-2 rounded-full bg-gray-200">
-
-                      <div className="h-2 w-[88%] rounded-full bg-purple-500" />
-
-                    </div>
-
-                  </div>
-
+                <div className="mb-4 text-3xl">
+                  💰
                 </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Finance
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage school fees, billing,
+                  and payment records.
+                </p>
+
+              </div>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  📅
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Scheduling
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage timetables, attendance,
+                  and scheduling.
+                </p>
+
+              </div>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  🔔
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Notifications
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage school announcements and
+                  important notifications.
+                </p>
+
+              </div>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  ⚙️
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Administration
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage users, roles, permissions,
+                  and system settings.
+                </p>
 
               </div>
 
             </div>
 
-          </section>
+          </div>
 
         </main>
 
@@ -562,5 +404,3 @@ function Dashboard() {
     </div>
   )
 }
-
-export default Dashboard

@@ -1,32 +1,19 @@
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 
-import Login from "./pages/auth/Login"
-import Register from "./pages/auth/Register"
-import ForgotPassword from "./pages/auth/ForgotPassword"
-import ResetPassword from "./pages/auth/ResetPassword"
-
-import Dashboard from "./pages/dashboard/Dashboard"
-
-import ProtectedRoute from "./routes/ProtectedRoute"
+import Login from './pages/auth/login'
+import ForcePasswordReset from './pages/auth/ForcePasswordReset'
+import Dashboard from './pages/dashboard/Dashboard'
+import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
 
-        {/* Default */}
         <Route
           path="/"
           element={<Navigate to="/login" replace />}
         />
-
-        {/* Authentication */}
 
         <Route
           path="/login"
@@ -34,21 +21,9 @@ function App() {
         />
 
         <Route
-          path="/register"
-          element={<Register />}
+          path="/force-password-reset"
+          element={<ForcePasswordReset />}
         />
-
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
-
-        <Route
-          path="/reset-password"
-          element={<ResetPassword />}
-        />
-
-        {/* Dashboard */}
 
         <Route
           path="/dashboard"
@@ -59,8 +34,12 @@ function App() {
           }
         />
 
-      </Routes>
+        <Route
+          path="*"
+          element={<Navigate to="/login" replace />}
+        />
 
+      </Routes>
     </BrowserRouter>
   )
 }

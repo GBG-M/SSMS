@@ -1,165 +1,232 @@
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { login } from '../../services/authService'
 
-function Login() {
+export default function Login() {
   const navigate = useNavigate()
 
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    email: '',
+    password: '',
   })
 
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e) => {
+  const handleChange = (event) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [event.target.name]: event.target.value,
     })
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
 
-    setError("")
-
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all fields.")
-      return
-    }
-
+    setError('')
     setLoading(true)
 
-    // TEMPORARY FRONTEND LOGIN
-    // We will replace this with Django API later.
+    try {
+      const result = await login(
+        formData.email,
+        formData.password
+      )
 
-    setTimeout(() => {
-      localStorage.setItem("access_token", "temporary-token")
+      const { data } = result
 
+      // ------------------------------------------------
+      // Mandatory password reset
+      // ------------------------------------------------
+      if (data.status === 'password_reset_required') {
+        // IMPORTANT:
+        // Backend returns "pre_auth_token"
+        // NOT "pre_auth_user_id"
+        localStorage.setItem(
+          'preAuthUserId',
+          data.pre_auth_token
+        )
+
+        navigate('/force-password-reset')
+        return
+      }
+
+      // ------------------------------------------------
+      // TOTP setup required
+      // ------------------------------------------------
+      if (data.status === 'totp_setup_required') {
+        setError(
+          'Two-factor authentication setup is required.'
+        )
+        return
+      }
+
+      // ------------------------------------------------
+      // TOTP verification required
+      // ------------------------------------------------
+      if (data.status === 'totp_verification_required') {
+        setError(
+          'Two-factor authentication verification is required.'
+        )
+        return
+      }
+
+      // ------------------------------------------------
+      // Normal successful login
+      // ------------------------------------------------
+      if (result.ok && data.token) {
+        localStorage.setItem(
+          'authToken',
+          data.token
+        )
+
+        localStorage.setItem(
+          'userEmail',
+          data.email
+        )
+
+        navigate('/dashboard')
+        return
+      }
+
+      // ------------------------------------------------
+      // Login failed
+      // ------------------------------------------------
+      setError(
+        data.error ||
+        data.detail ||
+        'Invalid email or password.'
+      )
+
+    } catch (error) {
+      console.error(error)
+
+      setError(
+        'Unable to connect to the server. Make sure Django is running.'
+      )
+
+    } finally {
       setLoading(false)
-      navigate("/dashboard")
-    }, 800)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-10">
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+      <div className="w-full max-w-md">
 
+        {/* Logo / Brand */}
         <div className="text-center mb-8">
 
-          <h1 className="text-3xl font-bold text-blue-600">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg">
+            <span className="text-2xl font-bold text-white">
+              S
+            </span>
+          </div>
+
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
             SSMS
           </h1>
 
-          <p className="text-gray-500 mt-2">
+          <p className="mt-2 text-sm text-slate-500">
             School Management System
           </p>
 
-          <h2 className="text-2xl font-semibold text-gray-800 mt-6">
-            Welcome Back
-          </h2>
-
-          <p className="text-gray-500 mt-1">
-            Login to your account
-          </p>
-
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-100 text-red-700 px-4 py-3">
-            {error}
-          </div>
-        )}
+        {/* Login Card */}
+        <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-slate-200">
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="mb-7">
 
-          <div>
+            <h2 className="text-2xl font-bold text-slate-900">
+              Welcome back
+            </h2>
 
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <p className="mt-2 text-sm text-slate-500">
+              Sign in to access your school account.
+            </p>
 
           </div>
 
-          <div>
+          {/* Error */}
+          {error && (
+            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
 
-            <div className="relative">
+            {/* Email */}
+            <div>
+
+              <label
+                htmlFor="email"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
+                Email address
+              </label>
 
               <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={formData.password}
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={formData.email}
                 onChange={handleChange}
-                placeholder="Enter your password"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-20 outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-blue-600"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
 
             </div>
 
-          </div>
+            {/* Password */}
+            <div>
 
-          <div className="text-right">
+              <label
+                htmlFor="password"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
+                Password
+              </label>
 
-            <Link
-              to="/forgot-password"
-              className="text-sm text-blue-600 hover:underline"
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              />
+
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Forgot password?
-            </Link>
+              {loading
+                ? 'Signing in...'
+                : 'Sign In'}
+            </button>
 
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-
-        </form>
-
-        <div className="text-center mt-6 text-gray-600">
-
-          Don't have an account?{" "}
-
-          <Link
-            to="/register"
-            className="font-semibold text-blue-600 hover:underline"
-          >
-            Register
-          </Link>
+          </form>
 
         </div>
+
+        <p className="mt-6 text-center text-xs text-slate-400">
+          © 2026 School Management System
+        </p>
 
       </div>
 
     </div>
   )
 }
-
-export default Login
