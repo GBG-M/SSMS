@@ -1,167 +1,231 @@
-import uuid
+# accounts/models.py
 from django.db import models
-from django.contrib.auth.models import (
-    AbstractBaseUser,
-    BaseUserManager,
-    PermissionsMixin,
-    Group
-)
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
+import uuid
 
-
-class CustomUserManager(BaseUserManager):
-    """Manager for custom user model where email is the unique identifier."""
-    
+class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
+        """
+        Create and save a user with the given email and password.
+        """
         if not email:
-            raise ValueError('The Email field must be set')
+            raise ValueError('Email is required')
+        
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        if password:
-            user.set_password(password)
-        else:
-            user.set_unusable_password()
+        
+        # Get username from extra_fields or create from email
+        username = extra_fields.pop('username', email.split('@')[0])
+        
+        # Create the user object
+        user = self.model(
+            email=email,
+            username=username,
+            **extra_fields
+        )
+        
+        # Set password and save
+        user.set_password(password)
         user.save(using=self._db)
         return user
-
+    
     def create_superuser(self, email, password=None, **extra_fields):
+        """
+        Create and save a superuser with the given email and password.
+        """
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
-
+        
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superuser must have is_staff=True.')
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
-
+        
+        # If username is not provided, create from email
+        if 'username' not in extra_fields:
+            extra_fields['username'] = email.split('@')[0]
+        
         return self.create_user(email, password, **extra_fields)
 
 
+class User(AbstractBaseUser, PermissionsMixin):
+    # Basic fields
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(unique=True, db_index=True)
+    username = models.CharField(max_length=150, unique=True, db_index=True)
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    
+    # Status fields
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
+    
+    # Security fields
+    must_reset_password = models.BooleanField(default=False)
+    requires_totp = models.BooleanField(default=False)
+    totp_enabled = models.BooleanField(default=False)
+    totp_secret = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Timestamps
+    date_joined = models.DateTimeField(default=timezone.now)
+    last_login = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Relationships
+    roles = models.ManyToManyField('Role', related_name='users', blank=True)
+    
+    objects = UserManager()
+    
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+    
+    class Meta:
+        db_table = 'users'
+        ordering = ['-date_joined']
+    
+    def __str__(self):
+        return self.email
+    
+    @property
+    def full_name(self):
+        if self.first_name or self.last_name:
+            return f"{self.first_name} {self.last_name}".strip()
+        return self.username
+    
+    @property
+    def role_names(self):
+        return [role.name for role in self.roles.all()]
+
+
 class Role(models.Model):
-    """Lightweight Role model for UI display and permission mapping."""
-    ADMIN = 'ADMIN'
-    TEACHER = 'TEACHER'
-    PARENT = 'PARENT'
-    STUDENT = 'STUDENT'
-    FINANCE = 'FINANCE'
-    ACADEMIC_COORDINATOR = 'ACADEMIC_COORDINATOR'
-
+    # Predefined roles
+    ADMIN = 'admin'
+    ACADEMIC_COORDINATOR = 'academic_coordinator'
+    TEACHER = 'teacher'
+    STUDENT = 'student'
+    PARENT = 'parent'
+    
     ROLE_CHOICES = [
-        (ADMIN, 'Administrator'),
-        (TEACHER, 'Teacher'),
-        (PARENT, 'Parent'),
-        (STUDENT, 'Student'),
-        (FINANCE, 'Finance Officer'),
+        (ADMIN, 'Admin'),
         (ACADEMIC_COORDINATOR, 'Academic Coordinator'),
+        (TEACHER, 'Teacher'),
+        (STUDENT, 'Student'),
+        (PARENT, 'Parent'),
     ]
-
-    name = models.CharField(max_length=30, choices=ROLE_CHOICES, unique=True)
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=50, choices=ROLE_CHOICES, unique=True)
     description = models.TextField(blank=True)
-    group = models.OneToOneField(
-        Group, 
-        on_delete=models.CASCADE, 
-        related_name='role', 
-        null=True, 
-        blank=True
-    )
-
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'roles'
+        ordering = ['name']
+    
     def __str__(self):
         return self.get_name_display()
 
 
-class User(AbstractBaseUser, PermissionsMixin):
-    """Custom User model extending AbstractBaseUser with email login."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(unique=True, db_index=True)
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
-    phone_number = models.CharField(max_length=20, blank=True)
-    
-    roles = models.ManyToManyField(Role, related_name='users', blank=True)
-    
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    must_reset_password = models.BooleanField(
-        default=True, 
-        help_text="Forces password reset on first login for staff-created accounts."
-    )
-    
-    # TOTP settings
-    totp_enabled = models.BooleanField(default=False)
-    totp_secret = models.CharField(max_length=32, blank=True, null=True)
-
-    date_joined = models.DateTimeField(default=timezone.now)
-
-    objects = CustomUserManager()
-
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
-
-    def __str__(self):
-        return f"{self.email} ({self.get_full_name()})"
-
-    def get_full_name(self):
-        return f"{self.first_name} {self.last_name}".strip()
-
-    @property
-    def requires_totp(self):
-        """Enforce TOTP for sensitive roles."""
-        sensitive_roles = [Role.ADMIN, Role.FINANCE]
-        return self.roles.filter(name__in=sensitive_roles).exists()
-
-
 class StudentProfile(models.Model):
-    """Profile metadata specific to Students."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
-    student_id = models.CharField(
-        max_length=30, 
-        unique=True, 
-        help_text="Format: YEAR-CAMPUS-SEQ (e.g., 2026-MAIN-00231)"
-    )
-    date_of_birth = models.DateField(null=True, blank=True)
-    grade_level = models.CharField(max_length=20, blank=True)
-
+    
+    # Student specific fields
+    student_id = models.CharField(max_length=50, unique=True, db_index=True)
+    department = models.CharField(max_length=100)
+    year = models.IntegerField(choices=[(1, 'Year 1'), (2, 'Year 2'), (3, 'Year 3'), (4, 'Year 4')])
+    program = models.CharField(max_length=100)
+    campus = models.CharField(max_length=50, default='MAIN')
+    
+    # Additional info
+    enrollment_date = models.DateField(default=timezone.now)
+    graduation_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'student_profiles'
+        ordering = ['student_id']
+    
     def __str__(self):
-        return f"{self.student_id} - {self.user.get_full_name()}"
+        return f"{self.user.full_name} ({self.student_id})"
+    
+    @property
+    def full_name(self):
+        return self.user.full_name if self.user else ""
 
 
 class ParentProfile(models.Model):
-    """Profile metadata specific to Parents/Guardians."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='parent_profile')
-    emergency_contact = models.CharField(max_length=20, blank=True)
-    address = models.TextField(blank=True)
-
-    def __str__(self):
-        return f"Parent: {self.user.get_full_name()}"
-
-
-class ParentGuardianLink(models.Model):
-    """Junction table supporting blended families & multiple guardians per student."""
-    RELATION_CHOICES = [
-        ('MOTHER', 'Mother'),
-        ('FATHER', 'Father'),
-        ('GUARDIAN', 'Legal Guardian'),
-        ('OTHER', 'Other'),
-    ]
-
-    parent = models.ForeignKey(ParentProfile, on_delete=models.CASCADE, related_name='guardian_links')
-    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='guardian_links')
-    relationship_type = models.CharField(max_length=20, choices=RELATION_CHOICES, default='GUARDIAN')
-    is_primary = models.BooleanField(default=False)
-
+    
+    # Parent specific fields
+    phone_number = models.CharField(max_length=20, default='')  # Added default
+    relationship = models.CharField(max_length=50, default='Parent')
+    is_primary = models.BooleanField(default=True)
+    
+    # Children (students) linked to this parent
+    students = models.ManyToManyField(StudentProfile, related_name='parents', blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
     class Meta:
-        unique_together = ('parent', 'student')
-
+        db_table = 'parent_profiles'
+        ordering = ['user__first_name']
+    
     def __str__(self):
-        return f"{self.parent.user.get_full_name()} -> {self.student.student_id} ({self.relationship_type})"
+        return f"{self.user.full_name} - {self.relationship}"
 
 
-class StaffProfile(models.Model):
-    """Employment metadata used across academics and scheduling."""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='staff_profile')
-    department = models.CharField(max_length=100)
-    subjects_taught = models.JSONField(default=list, blank=True)
-    employment_date = models.DateField()
-
+class PasswordResetRequest(models.Model):
+    """Model to track password reset requests"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('expired', 'Expired'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_resets')
+    token = models.CharField(max_length=255, unique=True)
+    expires_at = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'password_reset_requests'
+        ordering = ['-created_at']
+    
     def __str__(self):
-        return f"Staff: {self.user.get_full_name()} ({self.department})"
+        return f"{self.user.email} - {self.status}"
+    
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+
+class LoginHistory(models.Model):
+    """Track user login history"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='login_history')
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField(blank=True)
+    login_time = models.DateTimeField(auto_now_add=True)
+    logout_time = models.DateTimeField(null=True, blank=True)
+    is_successful = models.BooleanField(default=True)
+    
+    class Meta:
+        db_table = 'login_history'
+        ordering = ['-login_time']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.login_time}"
