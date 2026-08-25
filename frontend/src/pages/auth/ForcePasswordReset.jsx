@@ -16,6 +16,7 @@ function ForcePasswordReset() {
     setError('')
     setSuccess('')
 
+    // Get the user ID saved by Login.jsx
     const preAuthUserId =
       localStorage.getItem('preAuthUserId')
 
@@ -26,6 +27,7 @@ function ForcePasswordReset() {
       return
     }
 
+    // Validate passwords
     if (!password || !confirmPassword) {
       setError('Please enter both password fields.')
       return
@@ -56,7 +58,11 @@ function ForcePasswordReset() {
           },
 
           body: JSON.stringify({
-            pre_auth_token: preAuthUserId,
+            // IMPORTANT:
+            // Backend expects pre_auth_user_id
+            pre_auth_user_id: preAuthUserId,
+
+            // Backend expects new_password
             new_password: password,
           }),
         }
@@ -74,6 +80,7 @@ function ForcePasswordReset() {
         )
       }
 
+      // Backend returned an error
       if (!response.ok) {
         throw new Error(
           data.error ||
@@ -82,30 +89,62 @@ function ForcePasswordReset() {
         )
       }
 
-      if (data.token) {
-        localStorage.setItem(
-          'authToken',
-          data.token
+      /*
+       * Backend success response:
+       *
+       * {
+       *   "message": "Password updated successfully.",
+       *   "token": "...",
+       *   "user_id": "...",
+       *   "email": "..."
+       * }
+       */
+
+      if (!data.token) {
+        throw new Error(
+          'Password was updated, but the server did not return an authentication token.'
         )
       }
 
-      localStorage.removeItem('preAuthUserId')
+      // Save authentication token
+      localStorage.setItem(
+        'authToken',
+        data.token
+      )
+
+      // Save email if backend returned it
+      if (data.email) {
+        localStorage.setItem(
+          'userEmail',
+          data.email
+        )
+      }
+
+      // Pre-auth session is no longer needed
+      localStorage.removeItem(
+        'preAuthUserId'
+      )
 
       setSuccess(
         'Password updated successfully. Redirecting...'
       )
 
+      // Go to dashboard
       setTimeout(() => {
-        navigate('/dashboard')
+        navigate('/dashboard', { replace: true })
       }, 1000)
 
     } catch (error) {
-      console.error(error)
+      console.error(
+        'Password reset error:',
+        error
+      )
 
       setError(
         error.message ||
         'Password reset failed.'
       )
+
     } finally {
       setLoading(false)
     }
@@ -184,7 +223,9 @@ function ForcePasswordReset() {
                   setPassword(event.target.value)
                 }
                 required
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                minLength={8}
+                disabled={loading}
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
               />
             </div>
 
@@ -206,7 +247,9 @@ function ForcePasswordReset() {
                   setConfirmPassword(event.target.value)
                 }
                 required
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                minLength={8}
+                disabled={loading}
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
               />
             </div>
 

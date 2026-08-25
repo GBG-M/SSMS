@@ -38,12 +38,29 @@ export default function Login() {
       // Mandatory password reset
       // ------------------------------------------------
       if (data.status === 'password_reset_required') {
-        // IMPORTANT:
-        // Backend returns "pre_auth_token"
-        // NOT "pre_auth_user_id"
+        /*
+          Backend returns:
+
+          {
+            "status": "password_reset_required",
+            "message": "...",
+            "pre_auth_user_id": "..."
+          }
+
+          Therefore we MUST use:
+          data.pre_auth_user_id
+        */
+
+        if (!data.pre_auth_user_id) {
+          setError(
+            'Password reset is required, but the server did not provide the pre-auth user ID.'
+          )
+          return
+        }
+
         localStorage.setItem(
           'preAuthUserId',
-          data.pre_auth_token
+          data.pre_auth_user_id
         )
 
         navigate('/force-password-reset')
@@ -54,6 +71,13 @@ export default function Login() {
       // TOTP setup required
       // ------------------------------------------------
       if (data.status === 'totp_setup_required') {
+        if (data.pre_auth_user_id) {
+          localStorage.setItem(
+            'preAuthUserId',
+            data.pre_auth_user_id
+          )
+        }
+
         setError(
           'Two-factor authentication setup is required.'
         )
@@ -64,6 +88,13 @@ export default function Login() {
       // TOTP verification required
       // ------------------------------------------------
       if (data.status === 'totp_verification_required') {
+        if (data.pre_auth_user_id) {
+          localStorage.setItem(
+            'preAuthUserId',
+            data.pre_auth_user_id
+          )
+        }
+
         setError(
           'Two-factor authentication verification is required.'
         )
@@ -84,6 +115,9 @@ export default function Login() {
           data.email
         )
 
+        // Remove any old pre-auth information
+        localStorage.removeItem('preAuthUserId')
+
         navigate('/dashboard')
         return
       }
@@ -98,7 +132,7 @@ export default function Login() {
       )
 
     } catch (error) {
-      console.error(error)
+      console.error('Login error:', error)
 
       setError(
         'Unable to connect to the server. Make sure Django is running.'
