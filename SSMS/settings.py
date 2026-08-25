@@ -26,8 +26,10 @@ SECRET_KEY = "django-insecure-9f0m%pqj^yjnodr8_g-*crmt_((9iypv9$dm%((d8(=1g$(ihz
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
-
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -46,7 +48,7 @@ INSTALLED_APPS = [
     "academics",
     "finance",
     "scheduling",
-    "notifications"
+    "notifications",
 ]
 
 MIDDLEWARE = [
