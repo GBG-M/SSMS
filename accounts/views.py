@@ -7,7 +7,8 @@ from rest_framework import status, permissions, generics
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.contrib.auth import get_user_model
-
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from .models import User, Role
 from .serializers import (
     LoginSerializer, 
@@ -19,7 +20,7 @@ from .signals import provision_student_account
 
 User = get_user_model()
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginAPIView(APIView):
     """
     API equivalent of LoginView verifying TOTP and Forced Password Resets.
@@ -63,7 +64,7 @@ class LoginAPIView(APIView):
                     }, status=status.HTTP_200_OK)
 
             # Successful login (creates session or token)
-            login(request, user)
+            
             token, _ = Token.objects.get_or_create(user=user)
             
             return Response({
