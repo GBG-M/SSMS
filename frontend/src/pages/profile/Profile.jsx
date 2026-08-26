@@ -23,7 +23,7 @@ export default function Profile() {
 
   // Get authentication token
   const getToken = () => {
-    return localStorage.getItem('token')
+    return localStorage.getItem('authToken')
   }
 
   // Load current user's profile
@@ -55,7 +55,7 @@ export default function Profile() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          localStorage.removeItem('token')
+          localStorage.removeItem('authToken')
           navigate('/login')
           return
         }
