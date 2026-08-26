@@ -28,7 +28,7 @@ urlpatterns = [
     # User management (Admin only)
     path('profile/', UserProfileAPIView.as_view(), name='api_user_profile'),
     path('users/', UserListAPIView.as_view(), name='api_user_list'),
-    path('users/<int:pk>/', UserDetailAPIView.as_view(), name='api_user_detail'),
+    path('users/<uuid:pk>/', UserDetailAPIView.as_view(), name='api_user_detail'),
 ]
 # If you want to include this under the main URL configuration:
 # In your main project urls.py, you would have:
