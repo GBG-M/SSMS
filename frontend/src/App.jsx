@@ -7,6 +7,7 @@ import Dashboard from './pages/dashboard/Dashboard'
 import ProtectedRoute from './routes/ProtectedRoute'
 import Profile from './pages/profile/Profile'
 import ChangePassword from './pages/auth/ChangePassword'
+import Users from './pages/admin/Users'
 
 function App() {
   return (
@@ -30,6 +31,14 @@ function App() {
           path="/force-password-reset"
           element={<ForcePasswordReset />}
         />
+        <Route
+  path="/admin/users"
+  element={
+    <ProtectedRoute>
+      <Users />
+    </ProtectedRoute>
+  }
+/>
 
         {/* Protected Dashboard */}
         <Route

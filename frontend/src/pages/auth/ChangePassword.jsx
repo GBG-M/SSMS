@@ -41,7 +41,7 @@ export default function ChangePassword() {
       return
     }
 
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('authToken')
 
     if (!token) {
       navigate('/login')
@@ -62,6 +62,7 @@ export default function ChangePassword() {
           body: JSON.stringify({
             old_password: formData.old_password,
             new_password: formData.new_password,
+            confirm_password: formData.confirm_password,
           }),
         }
       )
@@ -70,7 +71,7 @@ export default function ChangePassword() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          localStorage.removeItem('token')
+          localStorage.removeItem('authToken')
           navigate('/login')
           return
         }
@@ -78,6 +79,7 @@ export default function ChangePassword() {
         const message =
           data.old_password?.[0] ||
           data.new_password?.[0] ||
+          data.confirm_password?.[0] ||
           data.detail ||
           data.error ||
           'Failed to change password.'
@@ -86,16 +88,24 @@ export default function ChangePassword() {
       }
 
       setSuccess(
-        data.message || 'Password changed successfully.'
-      )
+  data.message || 'Password changed successfully.'
+)
 
-      setFormData({
-        old_password: '',
-        new_password: '',
-        confirm_password: '',
-      })
+setFormData({
+  old_password: '',
+  new_password: '',
+  confirm_password: '',
+})
+
+localStorage.removeItem('authToken')
+
+setTimeout(() => {
+  navigate('/login')
+}, 1500)
     } catch (err) {
-      setError(err.message || 'Something went wrong.')
+      setError(
+        err.message || 'Something went wrong.'
+      )
     } finally {
       setLoading(false)
     }
@@ -119,6 +129,7 @@ export default function ChangePassword() {
           </div>
 
           <button
+            type="button"
             onClick={() => navigate('/profile')}
             className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
           >
@@ -169,6 +180,7 @@ export default function ChangePassword() {
 
             {/* Current password */}
             <div className="mb-6">
+
               <label
                 htmlFor="old_password"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -187,10 +199,12 @@ export default function ChangePassword() {
                 placeholder="Enter your current password"
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
+
             </div>
 
             {/* New password */}
             <div className="mb-6">
+
               <label
                 htmlFor="new_password"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -213,10 +227,12 @@ export default function ChangePassword() {
               <p className="mt-2 text-xs text-slate-400">
                 Use at least 8 characters.
               </p>
+
             </div>
 
             {/* Confirm password */}
             <div className="mb-8">
+
               <label
                 htmlFor="confirm_password"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -235,6 +251,7 @@ export default function ChangePassword() {
                 placeholder="Confirm your new password"
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
+
             </div>
 
             {/* Buttons */}
