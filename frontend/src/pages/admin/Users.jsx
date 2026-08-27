@@ -64,17 +64,16 @@ export default function Users() {
       }
 
       /*
-       * Your current backend response uses DRF pagination:
+       * Current backend response:
        *
        * {
-       *   count: 1,
-       *   next: null,
-       *   previous: null,
-       *   results: [...]
+       *   "count": 1,
+       *   "next": null,
+       *   "previous": null,
+       *   "results": [...]
        * }
        *
-       * The fallback also supports the custom "users" response
-       * your backend view can return when pagination is disabled.
+       * The fallback also supports a "users" response.
        */
       const userList = Array.isArray(data.results)
         ? data.results
@@ -147,6 +146,7 @@ export default function Users() {
 
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto max-w-7xl px-6 py-4">
+
             <h1 className="text-xl font-bold text-slate-800">
               School Management System
             </h1>
@@ -154,10 +154,12 @@ export default function Users() {
             <p className="text-sm text-slate-500">
               User Management
             </p>
+
           </div>
         </header>
 
         <main className="flex min-h-[70vh] items-center justify-center px-6">
+
           <div className="text-center">
 
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
@@ -167,6 +169,7 @@ export default function Users() {
             </p>
 
           </div>
+
         </main>
 
       </div>
@@ -345,6 +348,10 @@ export default function Users() {
                     Account
                   </th>
 
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Actions
+                  </th>
+
                 </tr>
 
               </thead>
@@ -357,7 +364,7 @@ export default function Users() {
                   <tr>
 
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="px-6 py-12 text-center"
                     >
 
@@ -496,6 +503,24 @@ export default function Users() {
 
                         </td>
 
+
+                        {/* Actions */}
+                        <td className="px-6 py-5">
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(
+                                `/admin/users/${user.id}`
+                              )
+                            }
+                            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                          >
+                            View Details
+                          </button>
+
+                        </td>
+
                       </tr>
                     )
                   })
@@ -511,7 +536,7 @@ export default function Users() {
         </div>
 
 
-        {/* Footer information */}
+        {/* Footer */}
         <div className="mt-5 flex flex-col justify-between gap-2 text-sm text-slate-500 sm:flex-row">
 
           <p>

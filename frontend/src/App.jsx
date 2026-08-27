@@ -8,7 +8,8 @@ import ProtectedRoute from './routes/ProtectedRoute'
 import Profile from './pages/profile/Profile'
 import ChangePassword from './pages/auth/ChangePassword'
 import Users from './pages/admin/Users'
-
+import UserDetails from './pages/admin/UserDetails'
+import EditUser from './pages/admin/EditUser'
 function App() {
   return (
     <BrowserRouter>
@@ -36,6 +37,22 @@ function App() {
   element={
     <ProtectedRoute>
       <Users />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/admin/users/:id"
+  element={
+    <ProtectedRoute>
+      <UserDetails />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/admin/users/:id/edit"
+  element={
+    <ProtectedRoute>
+      <EditUser />
     </ProtectedRoute>
   }
 />

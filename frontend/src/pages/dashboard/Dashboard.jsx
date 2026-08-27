@@ -1,17 +1,85 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../../services/authService'
+
+const API_BASE_URL = '/api/accounts'
 
 export default function Dashboard() {
   const navigate = useNavigate()
 
-  const email =
-    localStorage.getItem('userEmail') ||
-    'User'
+  const [profile, setProfile] = useState(null)
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
+
+  useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  async function fetchProfile() {
+    const token = localStorage.getItem('authToken')
+
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/profile/`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      const data = await response.json()
+
+      if (response.status === 401) {
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('userEmail')
+        navigate('/login')
+        return
+      }
+
+      if (!response.ok) {
+        console.error(
+          'Failed to load profile:',
+          data
+        )
+        return
+      }
+
+      setProfile(data)
+    } catch (error) {
+      console.error(
+        'Profile request failed:',
+        error
+      )
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+
+  const displayName =
+    profile?.full_name ||
+    `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() ||
+    profile?.username ||
+    'User'
+
+  const displayEmail =
+    profile?.email ||
+    localStorage.getItem('userEmail') ||
+    ''
+
+  const avatarLetter =
+    displayName.charAt(0).toUpperCase() || 'U'
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -127,20 +195,23 @@ export default function Dashboard() {
             <div className="hidden text-right sm:block">
 
               <p className="text-sm font-semibold text-slate-800">
-                {email}
+                {loadingProfile
+                  ? 'Loading...'
+                  : displayName}
               </p>
 
-              <p className="text-xs text-slate-500">
-                School User
-              </p>
+          
 
             </div>
 
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
-              {email.charAt(0).toUpperCase()}
+              {loadingProfile
+                ? '...'
+                : avatarLetter}
             </div>
 
             <button
+              type="button"
               onClick={handleLogout}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
             >
@@ -162,7 +233,9 @@ export default function Dashboard() {
             </p>
 
             <h1 className="text-3xl font-bold">
-              Welcome back! 👋
+              {loadingProfile
+                ? 'Welcome back! 👋'
+                : `Welcome back, ${displayName}! 👋`}
             </h1>
 
             <p className="mt-2 max-w-2xl text-blue-100">

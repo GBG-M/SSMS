@@ -10,6 +10,7 @@ export default function Login() {
     password: '',
   })
 
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -38,19 +39,6 @@ export default function Login() {
       // Mandatory password reset
       // ------------------------------------------------
       if (data.status === 'password_reset_required') {
-        /*
-          Backend returns:
-
-          {
-            "status": "password_reset_required",
-            "message": "...",
-            "pre_auth_user_id": "..."
-          }
-
-          Therefore we MUST use:
-          data.pre_auth_user_id
-        */
-
         if (!data.pre_auth_user_id) {
           setError(
             'Password reset is required, but the server did not provide the pre-auth user ID.'
@@ -115,7 +103,7 @@ export default function Login() {
           data.email
         )
 
-        // Remove any old pre-auth information
+        // Remove old pre-auth information
         localStorage.removeItem('preAuthUserId')
 
         navigate('/dashboard')
@@ -227,16 +215,35 @@ export default function Login() {
                 Password
               </label>
 
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
+              <div className="relative">
+
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 pr-20 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword((previous) => !previous)
+                  }
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-sm font-semibold text-slate-500 transition hover:text-blue-600 focus:outline-none"
+                  aria-label={
+                    showPassword
+                      ? 'Hide password'
+                      : 'Show password'
+                  }
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+
+              </div>
 
             </div>
 
