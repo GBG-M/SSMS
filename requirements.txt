@@ -1,5 +1,10 @@
 asgiref==3.12.1
 djando==0.2
 Django==6.1
+django-cors-headers==4.9.0
+django-filter==26.1
+django-otp==1.7.0
+djangorestframework==3.18.0
+pillow==12.3.0
 sqlparse==0.5.5
 tzdata==2026.3

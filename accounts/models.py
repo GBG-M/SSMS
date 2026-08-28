@@ -131,7 +131,7 @@ class Role(models.Model):
 
 class StudentProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE,  related_name='account_student_profile')
     
     # Student specific fields
     student_id = models.CharField(max_length=50, unique=True, db_index=True)
