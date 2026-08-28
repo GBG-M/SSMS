@@ -4,6 +4,7 @@ from django.dispatch import receiver
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.utils import timezone
 import random
 import string
 from .models import User, StudentProfile, ParentProfile, Role
