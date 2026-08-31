@@ -4,6 +4,7 @@ from django.dispatch import receiver
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.utils import timezone
 import random
 import string
 from .models import User, StudentProfile, ParentProfile, Role
@@ -20,18 +21,23 @@ def provision_student_account(student_data, parent_email, parent_phone, campus_c
     Called from ProvisionStudentAccountAPIView
     """
     from django.contrib.auth import get_user_model
+    from students.models import Student
     User = get_user_model()
     
     # Generate random password for student
     student_password = generate_random_password()
     
+    student_email = student_data.get('email')
+    student_first_name = student_data.get('first_name', '')
+    student_last_name = student_data.get('last_name', '')
+    
     # Create student user account
     student_user = User.objects.create_user(
-        username=student_data.get('username') or student_data.get('email').split('@')[0],
-        email=student_data.get('email'),
+        username=student_data.get('username') or (student_email.split('@')[0] if student_email else f"student_{student_data.get('student_id', '')}"),
+        email=student_email,
         password=student_password,  # Will be reset on first login
-        first_name=student_data.get('first_name', ''),
-        last_name=student_data.get('last_name', ''),
+        first_name=student_first_name,
+        last_name=student_last_name,
         must_reset_password=True,  # Force password reset on first login
     )
     
@@ -40,52 +46,75 @@ def provision_student_account(student_data, parent_email, parent_phone, campus_c
     student_user.roles.add(student_role)
     student_user.save()
     
-    # Create student profile
-    student_profile = StudentProfile.objects.create(
-        user=student_user,
+    # Create student record in students app
+    student, created = Student.objects.get_or_create(
         student_id=student_data.get('student_id'),
-        department=student_data.get('department'),
-        year=student_data.get('year'),
-        program=student_data.get('program'),
-        campus=campus_code,
-        enrollment_date=student_data.get('enrollment_date', timezone.now().date()),
+        defaults={
+            'user': student_user,
+            'first_name': student_first_name,
+            'last_name': student_last_name,
+            'middle_name': student_data.get('middle_name', ''),
+            'date_of_birth': student_data.get('date_of_birth') or timezone.now().date(),
+            'gender': student_data.get('gender', 'MALE'),
+            'email': student_email,
+            'phone_number': student_data.get('phone_number', ''),
+            'address': student_data.get('address', 'Not Specified'),
+            'emergency_contact_name': student_data.get('emergency_contact_name', student_data.get('parent_first_name', 'Guardian')),
+            'emergency_contact_phone': student_data.get('emergency_contact_phone', parent_phone),
+            'current_grade': str(student_data.get('year', student_data.get('current_grade', '1'))),
+            'current_class': student_data.get('program', student_data.get('current_class', 'General')),
+            'academic_year': student_data.get('academic_year', str(timezone.now().year)),
+            'guardian_name': f"{student_data.get('parent_first_name', '')} {student_data.get('parent_last_name', '')}".strip() or 'Parent',
+            'guardian_relationship': student_data.get('relationship', 'Parent'),
+            'guardian_phone': parent_phone,
+            'guardian_email': parent_email,
+            'status': 'ACTIVE',
+        }
     )
+    if not created and student.user is None:
+        student.user = student_user
+        student.save()
     
     # Generate random password for parent
     parent_password = generate_random_password()
-    
-    # Create parent user account
     parent_username = f"parent_{student_data.get('student_id', '').lower()}"
-    parent_user = User.objects.create_user(
-        username=parent_username,
+    parent_user, created = User.objects.get_or_create(
         email=parent_email,
-        password=parent_password,
-        first_name=student_data.get('parent_first_name', 'Parent'),
-        last_name=student_data.get('parent_last_name', ''),
-        must_reset_password=True,  # Force password reset on first login
+        defaults={
+            'username': parent_username,
+            'first_name': student_data.get('parent_first_name', 'Parent'),
+            'last_name': student_data.get('parent_last_name', ''),
+            'must_reset_password': True,
+        }
     )
-    
-    # Assign parent role
-    parent_role, _ = Role.objects.get_or_create(name=Role.PARENT)
-    parent_user.roles.add(parent_role)
-    parent_user.save()
+    if created:
+        parent_user.set_password(parent_password)
+        parent_user.save()
+        parent_role, _ = Role.objects.get_or_create(name=Role.PARENT)
+        parent_user.roles.add(parent_role)
+        parent_user.save()
     
     # Create parent profile
-    parent_profile = ParentProfile.objects.create(
+    parent_profile, _ = ParentProfile.objects.get_or_create(
         user=parent_user,
-        phone_number=parent_phone,
-        relationship=student_data.get('relationship', 'Parent'),
-        is_primary=True,
+        defaults={
+            'phone_number': parent_phone,
+            'relationship': student_data.get('relationship', 'Parent'),
+            'is_primary': True,
+        }
     )
     
     # Link parent to student
-    parent_profile.students.add(student_profile)
+    parent_profile.students.add(student)
     
-    # Send email notifications
-    send_account_credentials_email(student_user, student_password, 'Student')
-    send_account_credentials_email(parent_user, parent_password, 'Parent')
+    # Send email notifications (silently handles if smtp not configured)
+    try:
+        send_account_credentials_email(student_user, student_password, 'Student')
+        send_account_credentials_email(parent_user, parent_password, 'Parent')
+    except Exception:
+        pass
     
-    return student_profile, parent_profile
+    return student, parent_profile
 
 
 def send_account_credentials_email(user, password, user_type):

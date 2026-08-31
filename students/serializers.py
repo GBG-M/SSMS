@@ -37,11 +37,15 @@ class StudentSerializer(serializers.ModelSerializer):
         # Auto-generate student_id if not provided
         if not validated_data.get('student_id'):
             last_student = Student.objects.order_by('-id').first()
-            if last_student:
-                last_id = int(last_student.student_id[3:]) if last_student.student_id.startswith('STU') else 0
-                validated_data['student_id'] = f"STU{last_id + 1:06d}"
-            else:
-                validated_data['student_id'] = "STU000001"
+            last_id = 0
+            if last_student and last_student.student_id:
+                digits = ''.join(filter(str.isdigit, last_student.student_id))
+                if digits:
+                    try:
+                        last_id = int(digits)
+                    except ValueError:
+                        last_id = 0
+            validated_data['student_id'] = f"STU{last_id + 1:06d}"
         return super().create(validated_data)
 
 
