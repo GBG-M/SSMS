@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User, Role, StudentProfile, ParentProfile, PasswordResetRequest, LoginHistory
+# StudentProfile is deprecated - use students.Student instead
 
 class UserAdmin(BaseUserAdmin):
     list_display = ['email', 'username', 'first_name', 'last_name', 'is_active', 'is_staff', 'must_reset_password']
