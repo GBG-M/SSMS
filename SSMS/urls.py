@@ -21,4 +21,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls', namespace='accounts-api')),
     path('api/students/', include('students.urls', namespace='students-api')),
+    path('api/academics/', include('academics.urls', namespace='academics-api')),
 ]
