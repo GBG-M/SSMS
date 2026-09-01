@@ -1,5 +1,10 @@
 const API_BASE_URL = '/api/accounts'
 
+export function clearAuthSession() {
+  localStorage.removeItem('authToken')
+  localStorage.removeItem('userEmail')
+}
+
 export async function login(email, password) {
   const response = await fetch(`${API_BASE_URL}/login/`, {
     method: 'POST',
@@ -25,8 +30,7 @@ export async function logout() {
   const token = localStorage.getItem('authToken')
 
   if (!token) {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('userEmail')
+    clearAuthSession()
     return
   }
 
@@ -39,8 +43,7 @@ export async function logout() {
       },
     })
   } finally {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('userEmail')
+    clearAuthSession()
   }
 }
 
