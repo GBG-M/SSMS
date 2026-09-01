@@ -171,7 +171,7 @@ class ParentProfile(models.Model):
     is_primary = models.BooleanField(default=True)
     
     # Children (students) linked to this parent
-    students = models.ManyToManyField(StudentProfile, related_name='parents', blank=True)
+    students = models.ManyToManyField('students.Student', related_name='parents', blank=True)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
