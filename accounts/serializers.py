@@ -248,7 +248,8 @@ class ProvisionStudentSerializer(serializers.Serializer):
         
         # Check if student_id already exists
         student_id = attrs.get('student_id')
-        if StudentProfile.objects.filter(student_id=student_id).exists():
+        from students.models import Student
+        if Student.objects.filter(student_id=student_id).exists():
             raise serializers.ValidationError({
                 "student_id": "A student with this ID already exists."
             })
@@ -269,7 +270,7 @@ class ForcePasswordResetRequestSerializer(serializers.Serializer):
     """
     Serializer for admin to force password reset for a user
     """
-    user_id = serializers.IntegerField(required=True)
+    user_id = serializers.UUIDField(required=True)
     
     def validate_user_id(self, value):
         try:
