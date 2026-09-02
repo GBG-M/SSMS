@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { logout } from '../../services/authService'
 
 const API_BASE_URL = '/api/accounts'
@@ -168,6 +168,17 @@ export default function Dashboard() {
 
             Scheduling
           </a>
+
+          <Link
+            to="/notifications"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              🔔
+            </span>
+
+            Notifications
+          </Link>
 
         </nav>
 
