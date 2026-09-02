@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import date
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -115,7 +116,7 @@ class AcademicRecord(models.Model):
     gpa = models.DecimalField(
         max_digits=4, 
         decimal_places=2, 
-        validators=[MinValueValidator(0.0), MaxValueValidator(4.0)],
+        validators=[MinValueValidator(Decimal('0.0')), MaxValueValidator(Decimal('4.0'))],
         null=True, 
         blank=True
     )
