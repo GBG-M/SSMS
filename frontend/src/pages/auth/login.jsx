@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../../services/authService'
@@ -35,9 +36,7 @@ export default function Login() {
 
       const { data } = result
 
-      // ------------------------------------------------
-      // Mandatory password reset
-      // ------------------------------------------------
+      // Password reset required
       if (data.status === 'password_reset_required') {
         if (!data.pre_auth_user_id) {
           setError(
@@ -55,9 +54,7 @@ export default function Login() {
         return
       }
 
-      // ------------------------------------------------
       // TOTP setup required
-      // ------------------------------------------------
       if (data.status === 'totp_setup_required') {
         if (data.pre_auth_user_id) {
           localStorage.setItem(
@@ -72,9 +69,7 @@ export default function Login() {
         return
       }
 
-      // ------------------------------------------------
       // TOTP verification required
-      // ------------------------------------------------
       if (data.status === 'totp_verification_required') {
         if (data.pre_auth_user_id) {
           localStorage.setItem(
@@ -89,33 +84,58 @@ export default function Login() {
         return
       }
 
-      // ------------------------------------------------
-      // Normal successful login
-      // ------------------------------------------------
-      if (result.ok && data.token) {
+      // ---------------------------------------------
+      // Successful login
+      // Supports DRF Token and JWT
+      // ---------------------------------------------
+
+      const token =
+        data.token ||
+        data.access ||
+        data.access_token
+
+      if (result.ok && token) {
         localStorage.setItem(
           'authToken',
-          data.token
+          token
         )
+
+        /*
+         * DRF Token authentication:
+         *     data.token
+         *
+         * JWT authentication:
+         *     data.access
+         *     data.access_token
+         */
+        if (data.token) {
+          localStorage.setItem(
+            'authType',
+            'Token'
+          )
+        } else {
+          localStorage.setItem(
+            'authType',
+            'Bearer'
+          )
+        }
 
         localStorage.setItem(
           'userEmail',
-          data.email
+          data.email || formData.email
         )
 
-        // Remove old pre-auth information
         localStorage.removeItem('preAuthUserId')
 
         navigate('/dashboard')
         return
       }
 
-      // ------------------------------------------------
       // Login failed
-      // ------------------------------------------------
       setError(
         data.error ||
         data.detail ||
+        data.message ||
         'Invalid email or password.'
       )
 
@@ -125,7 +145,6 @@ export default function Login() {
       setError(
         'Unable to connect to the server. Make sure Django is running.'
       )
-
     } finally {
       setLoading(false)
     }
@@ -136,7 +155,7 @@ export default function Login() {
 
       <div className="w-full max-w-md">
 
-        {/* Logo / Brand */}
+        {/* Logo */}
         <div className="text-center mb-8">
 
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg">
@@ -159,7 +178,6 @@ export default function Login() {
         <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-slate-200">
 
           <div className="mb-7">
-
             <h2 className="text-2xl font-bold text-slate-900">
               Welcome back
             </h2>
@@ -167,7 +185,6 @@ export default function Login() {
             <p className="mt-2 text-sm text-slate-500">
               Sign in to access your school account.
             </p>
-
           </div>
 
           {/* Error */}
@@ -184,7 +201,6 @@ export default function Login() {
 
             {/* Email */}
             <div>
-
               <label
                 htmlFor="email"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -202,12 +218,10 @@ export default function Login() {
                 required
                 className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
-
             </div>
 
             {/* Password */}
             <div>
-
               <label
                 htmlFor="password"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -220,7 +234,11 @@ export default function Login() {
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={
+                    showPassword
+                      ? 'text'
+                      : 'password'
+                  }
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
@@ -231,20 +249,18 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword((previous) => !previous)
+                    setShowPassword(
+                      (previous) => !previous
+                    )
                   }
-                  className="absolute inset-y-0 right-0 flex items-center px-4 text-sm font-semibold text-slate-500 transition hover:text-blue-600 focus:outline-none"
-                  aria-label={
-                    showPassword
-                      ? 'Hide password'
-                      : 'Show password'
-                  }
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  {showPassword
+                    ? 'Hide'
+                    : 'Show'}
                 </button>
 
               </div>
-
             </div>
 
             {/* Submit */}

@@ -1,7 +1,10 @@
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { logout } from "../../services/authService";
 
 export default function StudentSidebar() {
+  const navigate = useNavigate();
+
   const menuItems = [
     {
       name: "Dashboard",
@@ -30,12 +33,18 @@ export default function StudentSidebar() {
     },
   ];
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
   return (
     <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col bg-gray-900 text-white">
 
       {/* Logo */}
       <div className="border-b border-gray-700 px-6 py-6">
         <h1 className="text-xl font-bold">SSMS</h1>
+
         <p className="mt-1 text-sm text-gray-400">
           Student Portal
         </p>
@@ -86,7 +95,8 @@ export default function StudentSidebar() {
       <div className="border-t border-gray-700 p-4">
         <button
           type="button"
-          className="w-full rounded-lg px-3 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"
+          onClick={handleLogout}
+          className="w-full rounded-lg px-3 py-3 text-left text-sm text-gray-300 transition hover:bg-gray-800"
         >
           🚪 Logout
         </button>
@@ -95,4 +105,3 @@ export default function StudentSidebar() {
     </aside>
   );
 }
-
