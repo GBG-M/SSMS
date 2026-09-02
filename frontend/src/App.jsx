@@ -10,6 +10,11 @@ import ChangePassword from './pages/auth/ChangePassword'
 import Users from './pages/admin/Users'
 import UserDetails from './pages/admin/UserDetails'
 import EditUser from './pages/admin/EditUser'
+import SchedulingOverview from './pages/scheduling/SchedulingOverview'
+import ClassSchedules from './pages/scheduling/ClassSchedules'
+import ExamSchedules from './pages/scheduling/ExamSchedules'
+import Rooms from './pages/scheduling/Rooms'
+
 function App() {
   return (
     <BrowserRouter>
@@ -82,6 +87,40 @@ function App() {
     </ProtectedRoute>
   }
 />
+
+        {/* Scheduling Routes */}
+        <Route
+          path="/scheduling"
+          element={
+            <ProtectedRoute>
+              <SchedulingOverview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scheduling/classes"
+          element={
+            <ProtectedRoute>
+              <ClassSchedules />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scheduling/exams"
+          element={
+            <ProtectedRoute>
+              <ExamSchedules />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scheduling/rooms"
+          element={
+            <ProtectedRoute>
+              <Rooms />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Unknown URL */}
         <Route
