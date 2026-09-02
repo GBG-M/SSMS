@@ -1,12 +1,13 @@
+import { getAuthHeader } from "../../services/authService";
+
 const API_URL = "/api/notifications/";
 
 async function request(url, options = {}) {
-  const token = localStorage.getItem("authToken");
   const response = await fetch(url, {
     ...options,
     headers: {
       Accept: "application/json",
-      Authorization: `Token ${token}`,
+      Authorization: getAuthHeader(),
       ...options.headers,
     },
   });
