@@ -22,4 +22,8 @@ urlpatterns = [
     path('api/accounts/', include('accounts.urls', namespace='accounts-api')),
     path('api/students/', include('students.urls', namespace='students-api')),
     path('api/academics/', include('academics.urls', namespace='academics-api')),
+    path('api/finance/', include('finance.urls', namespace='finance-api')),
+    path('api/scheduling/', include('scheduling.urls', namespace='scheduling-api')),
+    path('api/notifications/', include('notifications.urls', namespace='notifications-api')),
 ]
+
