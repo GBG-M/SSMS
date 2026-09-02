@@ -1,15 +1,56 @@
-
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 
 export default function StudentSidebar() {
   const navigate = useNavigate();
 
+  const [student, setStudent] = useState(null);
+
+  useEffect(() => {
+    fetchStudentProfile();
+  }, []);
+
+  async function fetchStudentProfile() {
+    const token = localStorage.getItem("authToken");
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/accounts/profile/", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem("authToken");
+          navigate("/login");
+          return;
+        }
+
+        return;
+      }
+
+      setStudent(data);
+    } catch (error) {
+      console.error("Failed to load student profile:", error);
+    }
+  }
+
   const menuItems = [
     {
       name: "Dashboard",
       path: "/student/dashboard",
-      icon: "🏠",
+      icon: "📊",
     },
     {
       name: "My Profile",
@@ -38,6 +79,14 @@ export default function StudentSidebar() {
     navigate("/login");
   };
 
+  const studentName =
+    student?.first_name || student?.username || "Student";
+
+  const fullName =
+    student?.first_name || student?.last_name
+      ? `${student?.first_name || ""} ${student?.last_name || ""}`.trim()
+      : studentName;
+
   return (
     <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col bg-gray-900 text-white">
 
@@ -53,11 +102,11 @@ export default function StudentSidebar() {
       {/* Student */}
       <div className="border-b border-gray-700 px-6 py-5">
         <p className="font-medium">
-          Aemiro Belete
+          {fullName}
         </p>
 
         <p className="text-sm text-gray-400">
-          STU000001
+          {student?.student_id || "Student"}
         </p>
       </div>
 
@@ -69,7 +118,6 @@ export default function StudentSidebar() {
         </p>
 
         <div className="space-y-2">
-
           {menuItems.map((item) => (
             <NavLink
               key={item.name}
@@ -83,11 +131,9 @@ export default function StudentSidebar() {
               }
             >
               <span>{item.icon}</span>
-
               <span>{item.name}</span>
             </NavLink>
           ))}
-
         </div>
       </nav>
 
@@ -105,3 +151,4 @@ export default function StudentSidebar() {
     </aside>
   );
 }
+

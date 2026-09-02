@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Home from "./pages/Home/Home";
@@ -6,7 +5,8 @@ import Login from "./pages/auth/login";
 import ForcePasswordReset from "./pages/auth/ForcePasswordReset";
 import Dashboard from "./pages/dashboard/Dashboard";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import Profile from "./pages/Profile/Profile";
+import StudentRoute from "./routes/StudentRoute";
+import Profile from "./pages/profile/Profile";
 import ChangePassword from "./pages/auth/ChangePassword";
 
 import Users from "./pages/admin/Users";
@@ -101,45 +101,45 @@ function App() {
         <Route
           path="/student/dashboard"
           element={
-            <ProtectedRoute>
+            <StudentRoute>
               <StudentDashboard />
-            </ProtectedRoute>
+            </StudentRoute>
           }
         />
 
         <Route
           path="/student/profile"
           element={
-            <ProtectedRoute>
+            <StudentRoute>
               <StudentProfile />
-            </ProtectedRoute>
+            </StudentRoute>
           }
         />
 
         <Route
           path="/student/academics"
           element={
-            <ProtectedRoute>
+            <StudentRoute>
               <AcademicRecords />
-            </ProtectedRoute>
+            </StudentRoute>
           }
         />
 
         <Route
           path="/student/attendance"
           element={
-            <ProtectedRoute>
+            <StudentRoute>
               <Attendance />
-            </ProtectedRoute>
+            </StudentRoute>
           }
         />
 
         <Route
           path="/student/documents"
           element={
-            <ProtectedRoute>
+            <StudentRoute>
               <Documents />
-            </ProtectedRoute>
+            </StudentRoute>
           }
         />
 
@@ -156,8 +156,5 @@ function App() {
   );
 }
 
-export default App; 
-
-
-
+export default App;
 

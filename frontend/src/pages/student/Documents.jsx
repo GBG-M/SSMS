@@ -53,9 +53,13 @@ export default function Documents() {
                   Uploaded: {document.date}
                 </p>
 
-                <button className="mt-5 w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
-                  View Document
-                </button>
+                <button
+  type="button"
+  disabled
+  className="mt-5 w-full cursor-not-allowed rounded-lg bg-gray-300 px-4 py-2 text-sm font-medium text-gray-500"
+>
+  View Document
+</button>
               </div>
             ))}
           </div>
