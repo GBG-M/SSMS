@@ -95,6 +95,7 @@ export default function Login() {
         data.access_token
 
       if (result.ok && token) {
+        console.log('Login response:', data)
         localStorage.setItem(
           'authToken',
           token
@@ -127,8 +128,35 @@ export default function Login() {
 
         localStorage.removeItem('preAuthUserId')
 
-        navigate('/dashboard')
-        return
+// Get the logged-in user's profile
+const profileResponse = await fetch('/api/accounts/profile/', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Token ${token}`,
+  },
+})
+
+const profile = await profileResponse.json()
+
+if (!profileResponse.ok) {
+  throw new Error(
+    profile.detail ||
+    profile.error ||
+    'Failed to load user profile.'
+  )
+}
+
+// Redirect based on role
+const roles = profile.role_names || []
+
+if (roles.includes('STUDENT')) {
+  navigate('/student/dashboard')
+} else {
+  navigate('/dashboard')
+}
+
+return
       }
 
       // Login failed
