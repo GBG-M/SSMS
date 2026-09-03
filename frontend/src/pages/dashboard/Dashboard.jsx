@@ -426,6 +426,26 @@ export default function Dashboard() {
 
               </div>
 
+              <Link
+                to="/notifications"
+                className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md"
+              >
+
+                <div className="mb-4 text-3xl">
+                  🔔
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Notifications
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage school announcements and
+                  important notifications.
+                </p>
+
+              </Link>
+
               <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
 
                 <div className="mb-4 text-3xl">
@@ -439,23 +459,6 @@ export default function Dashboard() {
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   Manage timetables, attendance,
                   and scheduling.
-                </p>
-
-              </div>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
-                <div className="mb-4 text-3xl">
-                  🔔
-                </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Notifications
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage school announcements and
-                  important notifications.
                 </p>
 
               </div>
