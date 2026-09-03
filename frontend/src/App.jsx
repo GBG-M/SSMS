@@ -28,24 +28,22 @@ import AcademicRecords from "./pages/student/AcademicRecords";
 import Attendance from "./pages/student/Attendance";
 import Documents from "./pages/student/Documents";
 
+import SchedulingOverview from "./pages/scheduling/SchedulingOverview";
+import ClassSchedules from "./pages/scheduling/ClassSchedules";
+import ExamSchedules from "./pages/scheduling/ExamSchedules";
+import Rooms from "./pages/scheduling/Rooms";
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
 
         {/* ================= PUBLIC ================= */}
-
         <Route path="/" element={<Home />} />
-
         <Route path="/login" element={<Login />} />
-
-        <Route
-          path="/force-password-reset"
-          element={<ForcePasswordReset />}
-        />
+        <Route path="/force-password-reset" element={<ForcePasswordReset />} />
 
         {/* ================= GENERAL PROTECTED ================= */}
-
         <Route
           path="/dashboard"
           element={
@@ -54,7 +52,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/profile"
           element={
@@ -63,7 +60,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/change-password"
           element={
@@ -74,7 +70,6 @@ function App() {
         />
 
         {/* ================= ADMIN ================= */}
-
         <Route
           path="/admin/users"
           element={
@@ -83,7 +78,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/admin/users/:id"
           element={
@@ -92,7 +86,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/admin/users/:id/edit"
           element={
@@ -103,7 +96,6 @@ function App() {
         />
 
         {/* ================= ACADEMICS ================= */}
-
         <Route
           path="/academics"
           element={
@@ -112,7 +104,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/years"
           element={
@@ -121,7 +112,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/subjects"
           element={
@@ -130,7 +120,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/courses"
           element={
@@ -139,7 +128,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/sections"
           element={
@@ -148,7 +136,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/enrollments"
           element={
@@ -157,7 +144,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/grades"
           element={
@@ -166,7 +152,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/assessments"
           element={
@@ -177,7 +162,6 @@ function App() {
         />
 
         {/* ================= STUDENT ================= */}
-
         <Route
           path="/student/dashboard"
           element={
@@ -186,7 +170,6 @@ function App() {
             </StudentRoute>
           }
         />
-
         <Route
           path="/student/profile"
           element={
@@ -195,7 +178,6 @@ function App() {
             </StudentRoute>
           }
         />
-
         <Route
           path="/student/academics"
           element={
@@ -204,7 +186,6 @@ function App() {
             </StudentRoute>
           }
         />
-
         <Route
           path="/student/attendance"
           element={
@@ -213,7 +194,6 @@ function App() {
             </StudentRoute>
           }
         />
-
         <Route
           path="/student/documents"
           element={
@@ -223,8 +203,41 @@ function App() {
           }
         />
 
-        {/* ================= UNKNOWN URL ================= */}
+        {/* ================= SCHEDULING ================= */}
+        <Route
+          path="/scheduling"
+          element={
+            <ProtectedRoute>
+              <SchedulingOverview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scheduling/classes"
+          element={
+            <ProtectedRoute>
+              <ClassSchedules />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scheduling/exams"
+          element={
+            <ProtectedRoute>
+              <ExamSchedules />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scheduling/rooms"
+          element={
+            <ProtectedRoute>
+              <Rooms />
+            </ProtectedRoute>
+          }
+        />
 
+        {/* ================= UNKNOWN URL ================= */}
         <Route
           path="*"
           element={<Navigate to="/" replace />}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { logout } from '../../services/authService'
 
 const API_BASE_URL = '/api/accounts'
@@ -158,8 +158,8 @@ export default function Dashboard() {
             Finance
           </a>
 
-          <a
-            href="#"
+          <Link
+            to="/scheduling"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -167,7 +167,7 @@ export default function Dashboard() {
             </span>
 
             Scheduling
-          </a>
+          </Link>
 
         </nav>
 
@@ -418,7 +418,10 @@ export default function Dashboard() {
 
               </div>
 
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+              <Link
+                to="/scheduling"
+                className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md block text-left"
+              >
 
                 <div className="mb-4 text-3xl">
                   📅
@@ -433,7 +436,7 @@ export default function Dashboard() {
                   and scheduling.
                 </p>
 
-              </div>
+              </Link>
 
               <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
 
