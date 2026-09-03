@@ -1,284 +1,493 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { logout } from '../../services/authService'
 
-import Home from "./pages/Home/Home";
-import Login from "./pages/auth/login";
-import ForcePasswordReset from "./pages/auth/ForcePasswordReset";
-import Dashboard from "./pages/dashboard/Dashboard";
-import ProtectedRoute from "./routes/ProtectedRoute";
-import StudentRoute from "./routes/StudentRoute";
-import Profile from "./pages/profile/Profile";
-import ChangePassword from "./pages/auth/ChangePassword";
+const API_BASE_URL = '/api/accounts'
 
-import Users from "./pages/admin/Users";
-import UserDetails from "./pages/admin/UserDetails";
-import EditUser from "./pages/admin/EditUser";
+export default function Dashboard() {
+  const navigate = useNavigate()
 
-import AcademicsOverview from "./pages/academics/AcademicsOverview";
-import AcademicYears from "./pages/academics/AcademicYears";
-import Subjects from "./pages/academics/Subjects";
-import Courses from "./pages/academics/Courses";
-import ClassSections from "./pages/academics/ClassSections";
-import Enrollments from "./pages/academics/Enrollments";
-import GradeBook from "./pages/academics/GradeBook";
-import Assessments from "./pages/academics/Assessments";
+  const [profile, setProfile] = useState(null)
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
-import StudentDashboard from "./pages/student/StudentDashboard";
-import StudentProfile from "./pages/student/StudentProfile";
-import AcademicRecords from "./pages/student/AcademicRecords";
-import Attendance from "./pages/student/Attendance";
-import Documents from "./pages/student/Documents";
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
+  }
 
-import SchedulingOverview from "./pages/scheduling/SchedulingOverview";
-import ClassSchedules from "./pages/scheduling/ClassSchedules";
-import ExamSchedules from "./pages/scheduling/ExamSchedules";
-import Rooms from "./pages/scheduling/Rooms";
+  useEffect(() => {
+    fetchProfile()
+  }, [])
 
-import Notifications from "./features/notifications/Notifications";
+  async function fetchProfile() {
+    const token = localStorage.getItem('authToken')
 
-function App() {
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/profile/`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      const data = await response.json()
+
+      if (response.status === 401) {
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('userEmail')
+        navigate('/login')
+        return
+      }
+
+      if (!response.ok) {
+        console.error(
+          'Failed to load profile:',
+          data
+        )
+        return
+      }
+
+      setProfile(data)
+    } catch (error) {
+      console.error(
+        'Profile request failed:',
+        error
+      )
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+
+  const displayName =
+    profile?.full_name ||
+    `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() ||
+    profile?.username ||
+    'User'
+
+  const displayEmail =
+    profile?.email ||
+    localStorage.getItem('userEmail') ||
+    ''
+
+  const avatarLetter =
+    displayName.charAt(0).toUpperCase() || 'U'
+
   return (
-    <BrowserRouter>
-      <Routes>
+    <div className="min-h-screen bg-slate-100">
 
-        {/* ================= PUBLIC ================= */}
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/force-password-reset"
-          element={<ForcePasswordReset />}
-        />
+      {/* Sidebar */}
+      <aside className="fixed inset-y-0 left-0 hidden w-64 bg-slate-900 text-white lg:block">
 
-        {/* ================= GENERAL PROTECTED ================= */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+        <div className="flex h-20 items-center border-b border-slate-800 px-6">
 
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
+          <div className="flex items-center gap-3">
 
-        <Route
-          path="/change-password"
-          element={
-            <ProtectedRoute>
-              <ChangePassword />
-            </ProtectedRoute>
-          }
-        />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
+              <span className="font-bold">
+                S
+              </span>
+            </div>
 
-        {/* ================= ADMIN ================= */}
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute>
-              <Users />
-            </ProtectedRoute>
-          }
-        />
+            <div>
+              <h1 className="font-bold">
+                SSMS
+              </h1>
 
-        <Route
-          path="/admin/users/:id"
-          element={
-            <ProtectedRoute>
-              <UserDetails />
-            </ProtectedRoute>
-          }
-        />
+              <p className="text-xs text-slate-400">
+                School Management
+              </p>
+            </div>
 
-        <Route
-          path="/admin/users/:id/edit"
-          element={
-            <ProtectedRoute>
-              <EditUser />
-            </ProtectedRoute>
-          }
-        />
+          </div>
 
-        {/* ================= ACADEMICS ================= */}
-        <Route
-          path="/academics"
-          element={
-            <ProtectedRoute>
-              <AcademicsOverview />
-            </ProtectedRoute>
-          }
-        />
+        </div>
 
-        <Route
-          path="/academics/years"
-          element={
-            <ProtectedRoute>
-              <AcademicYears />
-            </ProtectedRoute>
-          }
-        />
+        {/* Navigation */}
+        <nav className="space-y-1 px-4 py-6">
 
-        <Route
-          path="/academics/subjects"
-          element={
-            <ProtectedRoute>
-              <Subjects />
-            </ProtectedRoute>
-          }
-        />
+          <a
+            href="#"
+            className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium"
+          >
+            <span className="mr-3">
+              🏠
+            </span>
 
-        <Route
-          path="/academics/courses"
-          element={
-            <ProtectedRoute>
-              <Courses />
-            </ProtectedRoute>
-          }
-        />
+            Dashboard
+          </a>
 
-        <Route
-          path="/academics/sections"
-          element={
-            <ProtectedRoute>
-              <ClassSections />
-            </ProtectedRoute>
-          }
-        />
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              👨‍🎓
+            </span>
 
-        <Route
-          path="/academics/enrollments"
-          element={
-            <ProtectedRoute>
-              <Enrollments />
-            </ProtectedRoute>
-          }
-        />
+            Students
+          </a>
 
-        <Route
-          path="/academics/grades"
-          element={
-            <ProtectedRoute>
-              <GradeBook />
-            </ProtectedRoute>
-          }
-        />
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              📚
+            </span>
 
-        <Route
-          path="/academics/assessments"
-          element={
-            <ProtectedRoute>
-              <Assessments />
-            </ProtectedRoute>
-          }
-        />
+            Academics
+          </a>
 
-        {/* ================= STUDENT ================= */}
-        <Route
-          path="/student/dashboard"
-          element={
-            <StudentRoute>
-              <StudentDashboard />
-            </StudentRoute>
-          }
-        />
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              💰
+            </span>
 
-        <Route
-          path="/student/profile"
-          element={
-            <StudentRoute>
-              <StudentProfile />
-            </StudentRoute>
-          }
-        />
+            Finance
+          </a>
 
-        <Route
-          path="/student/academics"
-          element={
-            <StudentRoute>
-              <AcademicRecords />
-            </StudentRoute>
-          }
-        />
+          <a
+            href="#"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              📅
+            </span>
 
-        <Route
-          path="/student/attendance"
-          element={
-            <StudentRoute>
-              <Attendance />
-            </StudentRoute>
-          }
-        />
+            Scheduling
+          </a>
 
-        <Route
-          path="/student/documents"
-          element={
-            <StudentRoute>
-              <Documents />
-            </StudentRoute>
-          }
-        />
+          <Link
+            to="/notifications"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              🔔
+            </span>
 
-        {/* ================= SCHEDULING ================= */}
-        <Route
-          path="/scheduling"
-          element={
-            <ProtectedRoute>
-              <SchedulingOverview />
-            </ProtectedRoute>
-          }
-        />
+            Notifications
+          </Link>
 
-        <Route
-          path="/scheduling/classes"
-          element={
-            <ProtectedRoute>
-              <ClassSchedules />
-            </ProtectedRoute>
-          }
-        />
+        </nav>
 
-        <Route
-          path="/scheduling/exams"
-          element={
-            <ProtectedRoute>
-              <ExamSchedules />
-            </ProtectedRoute>
-          }
-        />
+      </aside>
 
-        <Route
-          path="/scheduling/rooms"
-          element={
-            <ProtectedRoute>
-              <Rooms />
-            </ProtectedRoute>
-          }
-        />
+      {/* Main area */}
+      <div className="lg:ml-64">
 
-        {/* ================= NOTIFICATIONS ================= */}
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute>
-              <Notifications />
-            </ProtectedRoute>
-          }
-        />
+        {/* Top Header */}
+        <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
 
-        {/* ================= UNKNOWN URL ================= */}
-        <Route
-          path="*"
-          element={<Navigate to="/" replace />}
-        />
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">
+              Dashboard
+            </h2>
 
-      </Routes>
-    </BrowserRouter>
-  );
+            <p className="text-sm text-slate-500">
+              Welcome back to SSMS
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4">
+
+            {/* User */}
+            <div className="hidden text-right sm:block">
+
+              <p className="text-sm font-semibold text-slate-800">
+                {loadingProfile
+                  ? 'Loading...'
+                  : displayName}
+              </p>
+
+          
+
+            </div>
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
+              {loadingProfile
+                ? '...'
+                : avatarLetter}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              Logout
+            </button>
+
+          </div>
+
+        </header>
+
+        {/* Dashboard Content */}
+        <main className="p-6">
+
+          {/* Welcome */}
+          <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-white shadow-lg">
+
+            <p className="mb-2 text-sm font-medium text-blue-100">
+              School Management System
+            </p>
+
+            <h1 className="text-3xl font-bold">
+              {loadingProfile
+                ? 'Welcome back! 👋'
+                : `Welcome back, ${displayName}! 👋`}
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-blue-100">
+              Manage students, academics, finance,
+              scheduling, and other school activities
+              from one place.
+            </p>
+
+          </div>
+
+          {/* Statistics */}
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+                  <p className="text-sm text-slate-500">
+                    Students
+                  </p>
+
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-blue-100 p-3 text-2xl">
+                  👨‍🎓
+                </div>
+
+              </div>
+
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
+
+            </div>
+
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+                  <p className="text-sm text-slate-500">
+                    Teachers
+                  </p>
+
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-green-100 p-3 text-2xl">
+                  👨‍🏫
+                </div>
+
+              </div>
+
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
+
+            </div>
+
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+                  <p className="text-sm text-slate-500">
+                    Classes
+                  </p>
+
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-purple-100 p-3 text-2xl">
+                  📚
+                </div>
+
+              </div>
+
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
+
+            </div>
+
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+                  <p className="text-sm text-slate-500">
+                    Attendance
+                  </p>
+
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    --
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-orange-100 p-3 text-2xl">
+                  📊
+                </div>
+
+              </div>
+
+              <p className="mt-4 text-xs text-slate-400">
+                Data will connect later
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* Modules */}
+          <div className="mt-8">
+
+            <h2 className="mb-4 text-xl font-bold text-slate-900">
+              System Modules
+            </h2>
+
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  👨‍🎓
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Student Management
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage student profiles, admissions,
+                  and documentation.
+                </p>
+
+              </div>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  📚
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Academic Management
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage classes, subjects, grades,
+                  and academic results.
+                </p>
+
+              </div>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  💰
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Finance
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage school fees, billing,
+                  and payment records.
+                </p>
+
+              </div>
+
+              <Link
+                to="/notifications"
+                className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md"
+              >
+
+                <div className="mb-4 text-3xl">
+                  🔔
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Notifications
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage school announcements and
+                  important notifications.
+                </p>
+
+              </Link>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  📅
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Scheduling
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage timetables, attendance,
+                  and scheduling.
+                </p>
+
+              </div>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  ⚙️
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Administration
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage users, roles, permissions,
+                  and system settings.
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </main>
+
+      </div>
+
+    </div>
+  )
 }
-
-export default App;
