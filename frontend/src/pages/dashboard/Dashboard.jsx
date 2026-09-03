@@ -57,6 +57,20 @@ export default function Dashboard() {
       }
 
       setProfile(data)
+
+      // Fetch student stats if accessible
+      try {
+        const statsRes = await fetch('/api/students/students/statistics/', {
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        if (statsRes.ok) {
+          const statsData = await statsRes.json()
+          setStudentStats(statsData)
+        }
+      } catch {}
     } catch (error) {
       console.error(
         'Profile request failed:',
@@ -66,6 +80,8 @@ export default function Dashboard() {
       setLoadingProfile(false)
     }
   }
+
+  const [studentStats, setStudentStats] = useState(null)
 
   const displayName =
     profile?.full_name ||
@@ -272,29 +288,22 @@ export default function Dashboard() {
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-
               <div className="flex items-center justify-between">
-
                 <div>
                   <p className="text-sm text-slate-500">
-                    Students
+                    Total Students
                   </p>
-
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    --
+                    {studentStats ? studentStats.total_students : '--'}
                   </p>
                 </div>
-
                 <div className="rounded-xl bg-blue-100 p-3 text-2xl">
                   👨‍🎓
                 </div>
-
               </div>
-
-              <p className="mt-4 text-xs text-slate-400">
-                Data will connect later
+              <p className="mt-4 text-xs text-slate-500">
+                {studentStats ? `${studentStats.active_students || 0} active students` : 'Live enrollment summary'}
               </p>
-
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
