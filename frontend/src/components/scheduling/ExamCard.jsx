@@ -12,11 +12,13 @@ export default function ExamCard({ exam, onEdit, onDelete }) {
     }
   }
 
+  // Timezone-safe local date formatting
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
     try {
-      const d = new Date(dateStr)
-      return d.toLocaleDateString('en-US', {
+      const [y, m, d] = dateStr.split('-').map(Number)
+      const dateObj = new Date(y, m - 1, d)
+      return dateObj.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -27,17 +29,24 @@ export default function ExamCard({ exam, onEdit, onDelete }) {
     }
   }
 
+  // Timezone-safe countdown calculation
   const getDaysRemaining = (dateStr) => {
     if (!dateStr) return null
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const target = new Date(dateStr)
-    target.setHours(0, 0, 0, 0)
-    const diff = Math.round((target - today) / (1000 * 60 * 60 * 24))
-    if (diff < 0) return { label: 'Completed', color: 'bg-slate-100 text-slate-500' }
-    if (diff === 0) return { label: 'Today! ⚠️', color: 'bg-red-100 text-red-700 font-bold animate-pulse' }
-    if (diff === 1) return { label: 'Tomorrow', color: 'bg-amber-100 text-amber-700 font-semibold' }
-    return { label: `In ${diff} days`, color: 'bg-blue-50 text-blue-700' }
+    try {
+      const [y, m, d] = dateStr.split('-').map(Number)
+      if (!y || !m || !d) return null
+      const target = new Date(y, m - 1, d)
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const diff = Math.round((target - today) / (1000 * 60 * 60 * 24))
+
+      if (diff < 0) return { label: 'Completed', color: 'bg-slate-100 text-slate-500' }
+      if (diff === 0) return { label: 'Today! ⚠️', color: 'bg-red-100 text-red-700 font-bold animate-pulse' }
+      if (diff === 1) return { label: 'Tomorrow', color: 'bg-amber-100 text-amber-700 font-semibold' }
+      return { label: `In ${diff} days`, color: 'bg-blue-50 text-blue-700' }
+    } catch {
+      return null
+    }
   }
 
   const typeColors = {
@@ -58,7 +67,7 @@ export default function ExamCard({ exam, onEdit, onDelete }) {
             {exam.exam_type}
           </span>
           {remaining && (
-            <span className={`rounded-full px-2.5 py-0.5 text-xs ${remaining.color}`}>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${remaining.color}`}>
               {remaining.label}
             </span>
           )}
@@ -105,7 +114,7 @@ export default function ExamCard({ exam, onEdit, onDelete }) {
         )}
       </div>
 
-      {/* Actions */}
+      {/* Actions (Only rendered if onEdit/onDelete passed) */}
       {(onEdit || onDelete) && (
         <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
           {onEdit && (

@@ -9,6 +9,7 @@ import {
   fetchAcademicYearsLookup,
   deleteExamSchedule,
 } from '../../services/scheduleService'
+import { getCurrentUserProfile, hasSchedulingPermission } from '../../services/authService'
 
 const EXAM_TYPES = [
   { value: 'ALL', label: 'All Exam Types' },
@@ -19,6 +20,7 @@ const EXAM_TYPES = [
 ]
 
 export default function ExamSchedules() {
+  const [currentUser, setCurrentUser] = useState(null)
   const [exams, setExams] = useState([])
   const [rooms, setRooms] = useState([])
   const [classSections, setClassSections] = useState([])
@@ -36,17 +38,26 @@ export default function ExamSchedules() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
 
+  const canManage = hasSchedulingPermission(currentUser)
+
   useEffect(() => {
+    loadUser()
     loadExams()
-    loadLookups()
   }, [])
+
+  async function loadUser() {
+    const profile = await getCurrentUserProfile()
+    setCurrentUser(profile)
+    if (hasSchedulingPermission(profile)) {
+      loadLookups()
+    }
+  }
 
   async function loadExams() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetchExamSchedules()
-      const data = res.results || res || []
+      const data = await fetchExamSchedules({}, true)
       setExams(data)
     } catch (err) {
       setError(err.message || 'Failed to load exam schedules.')
@@ -58,7 +69,7 @@ export default function ExamSchedules() {
   async function loadLookups() {
     try {
       const [roomsRes, sectionsRes, yearsRes] = await Promise.all([
-        fetchRooms(),
+        fetchRooms({}, true),
         fetchClassSectionsLookup(),
         fetchAcademicYearsLookup(),
       ])
@@ -74,7 +85,7 @@ export default function ExamSchedules() {
     if (!window.confirm('Are you sure you want to delete this exam schedule?')) return
     try {
       await deleteExamSchedule(id)
-      loadExams()
+      setExams((prev) => prev.filter((e) => e.id !== id))
     } catch (err) {
       alert(err.message || 'Failed to delete exam.')
     }
@@ -100,16 +111,18 @@ export default function ExamSchedules() {
       title="Exam Schedules"
       subtitle="Track upcoming midterm, final, and practical examination bookings."
       actions={
-        <button
-          onClick={() => {
-            setEditingExam(null)
-            setIsModalOpen(true)
-          }}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
-        >
-          <span>＋</span>
-          <span>Schedule Exam</span>
-        </button>
+        canManage ? (
+          <button
+            onClick={() => {
+              setEditingExam(null)
+              setIsModalOpen(true)
+            }}
+            className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
+          >
+            <span>＋</span>
+            <span>Schedule Exam</span>
+          </button>
+        ) : null
       }
     >
       {error && (
@@ -193,11 +206,15 @@ export default function ExamSchedules() {
             <ExamCard
               key={exam.id}
               exam={exam}
-              onEdit={(item) => {
-                setEditingExam(item)
-                setIsModalOpen(true)
-              }}
-              onDelete={handleDelete}
+              onEdit={
+                canManage
+                  ? (item) => {
+                      setEditingExam(item)
+                      setIsModalOpen(true)
+                    }
+                  : null
+              }
+              onDelete={canManage ? handleDelete : null}
             />
           ))}
         </div>
@@ -208,30 +225,34 @@ export default function ExamSchedules() {
           <p className="text-xs text-slate-500 mt-1 max-w-sm">
             {search || selectedType !== 'ALL' || selectedRoom
               ? 'No exams match your filter criteria. Try resetting filters.'
-              : 'There are currently no exams scheduled. Click the button below to schedule one.'}
+              : 'There are currently no exams scheduled.'}
           </p>
-          <button
-            onClick={() => {
-              setEditingExam(null)
-              setIsModalOpen(true)
-            }}
-            className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
-          >
-            ＋ Schedule First Exam
-          </button>
+          {canManage && (
+            <button
+              onClick={() => {
+                setEditingExam(null)
+                setIsModalOpen(true)
+              }}
+              className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              ＋ Schedule First Exam
+            </button>
+          )}
         </div>
       )}
 
       {/* Exam Modal */}
-      <ExamScheduleModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSaved={loadExams}
-        initialData={editingExam}
-        classSections={classSections}
-        rooms={rooms}
-        academicYears={academicYears}
-      />
+      {canManage && (
+        <ExamScheduleModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSaved={loadExams}
+          initialData={editingExam}
+          classSections={classSections}
+          rooms={rooms}
+          academicYears={academicYears}
+        />
+      )}
     </SchedulingLayout>
   )
 }

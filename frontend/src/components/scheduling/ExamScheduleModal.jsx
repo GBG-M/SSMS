@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createExamSchedule, updateExamSchedule } from '../../services/scheduleService'
+import { createExamSchedule, updateExamSchedule, parseApiError, getLocalDateString } from '../../services/scheduleService'
 
 const EXAM_TYPES = [
   { value: 'MIDTERM', label: 'Midterm Exam' },
@@ -22,7 +22,7 @@ export default function ExamScheduleModal({
     room: '',
     academic_year: '',
     exam_type: 'MIDTERM',
-    exam_date: new Date().toISOString().slice(0, 10),
+    exam_date: getLocalDateString(),
     start_time: '09:00',
     end_time: '11:00',
     notes: '',
@@ -37,7 +37,7 @@ export default function ExamScheduleModal({
         room: initialData.room || '',
         academic_year: initialData.academic_year || '',
         exam_type: initialData.exam_type || 'MIDTERM',
-        exam_date: initialData.exam_date || new Date().toISOString().slice(0, 10),
+        exam_date: initialData.exam_date || getLocalDateString(),
         start_time: initialData.start_time?.slice(0, 5) || '09:00',
         end_time: initialData.end_time?.slice(0, 5) || '11:00',
         notes: initialData.notes || '',
@@ -48,7 +48,7 @@ export default function ExamScheduleModal({
         room: rooms[0]?.id || '',
         academic_year: academicYears[0]?.id || '',
         exam_type: 'MIDTERM',
-        exam_date: new Date().toISOString().slice(0, 10),
+        exam_date: getLocalDateString(),
         start_time: '09:00',
         end_time: '11:00',
         notes: '',
@@ -62,6 +62,13 @@ export default function ExamScheduleModal({
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    // Client-side validation: end time must be after start time
+    if (formData.start_time && formData.end_time && formData.start_time >= formData.end_time) {
+      setError('End time must be after start time.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -73,7 +80,7 @@ export default function ExamScheduleModal({
       onSaved()
       onClose()
     } catch (err) {
-      setError(err.message || 'Failed to save exam schedule.')
+      setError(parseApiError(err))
     } finally {
       setSubmitting(false)
     }

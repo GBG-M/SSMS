@@ -3,6 +3,7 @@ const API_BASE_URL = '/api/accounts'
 export function clearAuthSession() {
   localStorage.removeItem('authToken')
   localStorage.removeItem('userEmail')
+  localStorage.removeItem('userProfile')
 }
 
 export async function login(email, password) {
@@ -53,4 +54,40 @@ export function getToken() {
 
 export function isAuthenticated() {
   return Boolean(localStorage.getItem('authToken'))
+}
+
+export async function getCurrentUserProfile(forceRefresh = false) {
+  const token = getToken()
+  if (!token) return null
+
+  if (!forceRefresh) {
+    try {
+      const cached = localStorage.getItem('userProfile')
+      if (cached) return JSON.parse(cached)
+    } catch {}
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) return null
+    const user = await response.json()
+    localStorage.setItem('userProfile', JSON.stringify(user))
+    return user
+  } catch {
+    return null
+  }
+}
+
+export function hasSchedulingPermission(user) {
+  if (!user) return false
+  if (user.is_staff || user.is_superuser) return true
+  const roles = user.role_names || (user.roles ? user.roles.map(r => r.name || r) : [])
+  return roles.includes('admin') || roles.includes('academic_coordinator')
 }

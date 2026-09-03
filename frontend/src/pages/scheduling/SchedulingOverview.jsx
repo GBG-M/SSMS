@@ -11,11 +11,14 @@ import {
   fetchAcademicYearsLookup,
   fetchTeachersLookup,
   deleteClassSchedule,
+  getLocalDateString,
 } from '../../services/scheduleService'
+import { getCurrentUserProfile, hasSchedulingPermission } from '../../services/authService'
 
 const DAY_MAP = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 
 export default function SchedulingOverview() {
+  const [currentUser, setCurrentUser] = useState(null)
   const [classSchedules, setClassSchedules] = useState([])
   const [examSchedules, setExamSchedules] = useState([])
   const [rooms, setRooms] = useState([])
@@ -32,10 +35,19 @@ export default function SchedulingOverview() {
 
   const todayIndex = new Date().getDay()
   const todayDayKey = DAY_MAP[todayIndex]
+  const todayStr = getLocalDateString()
+
+  const canManage = hasSchedulingPermission(currentUser)
 
   useEffect(() => {
+    loadUser()
     loadAllData()
   }, [])
+
+  async function loadUser() {
+    const profile = await getCurrentUserProfile()
+    setCurrentUser(profile)
+  }
 
   async function loadAllData() {
     setLoading(true)
@@ -55,7 +67,7 @@ export default function SchedulingOverview() {
       setExamSchedules(examsData)
       setRooms(roomsData)
 
-      // Background lookup load for modal
+      // Background lookup load for modal if authorized
       Promise.all([
         fetchClassSectionsLookup(),
         fetchAcademicYearsLookup(),
@@ -66,7 +78,7 @@ export default function SchedulingOverview() {
         setTeachers(teachs)
       }).catch(() => {})
     } catch (err) {
-      setError('Failed to load scheduling data: ' + err.message)
+      setError('Failed to load scheduling data: ' + (err.message || 'Check network connection'))
     } finally {
       setLoading(false)
     }
@@ -76,7 +88,8 @@ export default function SchedulingOverview() {
     if (!window.confirm('Are you sure you want to remove this schedule entry?')) return
     try {
       await deleteClassSchedule(id)
-      loadAllData()
+      // Instant UI update
+      setClassSchedules((prev) => prev.filter((s) => s.id !== id))
     } catch (err) {
       alert(err.message || 'Failed to delete schedule.')
     }
@@ -86,9 +99,10 @@ export default function SchedulingOverview() {
     .filter((s) => s.day_of_week === todayDayKey)
     .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
 
+  // Timezone-safe upcoming exams filter
   const upcomingExams = [...examSchedules]
-    .filter((e) => new Date(e.exam_date) >= new Date(new Date().setHours(0, 0, 0, 0)))
-    .sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date))
+    .filter((e) => e.exam_date >= todayStr)
+    .sort((a, b) => a.exam_date.localeCompare(b.exam_date))
     .slice(0, 3)
 
   return (
@@ -96,16 +110,18 @@ export default function SchedulingOverview() {
       title="Scheduling Overview"
       subtitle="Monitor live timetables, exam reservations, and room capacities."
       actions={
-        <button
-          onClick={() => {
-            setEditingSchedule(null)
-            setIsModalOpen(true)
-          }}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
-        >
-          <span>＋</span>
-          <span>Add Class Schedule</span>
-        </button>
+        canManage ? (
+          <button
+            onClick={() => {
+              setEditingSchedule(null)
+              setIsModalOpen(true)
+            }}
+            className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
+          >
+            <span>＋</span>
+            <span>Add Class Schedule</span>
+          </button>
+        ) : null
       }
     >
       {error && (
@@ -212,11 +228,15 @@ export default function SchedulingOverview() {
                 <ScheduleCard
                   key={schedule.id}
                   schedule={schedule}
-                  onEdit={(item) => {
-                    setEditingSchedule(item)
-                    setIsModalOpen(true)
-                  }}
-                  onDelete={handleDelete}
+                  onEdit={
+                    canManage
+                      ? (item) => {
+                          setEditingSchedule(item)
+                          setIsModalOpen(true)
+                        }
+                      : null
+                  }
+                  onDelete={canManage ? handleDelete : null}
                 />
               ))}
             </div>
@@ -302,16 +322,18 @@ export default function SchedulingOverview() {
       </div>
 
       {/* Modal Form */}
-      <ClassScheduleModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSaved={loadAllData}
-        initialData={editingSchedule}
-        classSections={classSections}
-        rooms={rooms}
-        academicYears={academicYears}
-        teachers={teachers}
-      />
+      {canManage && (
+        <ClassScheduleModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSaved={loadAllData}
+          initialData={editingSchedule}
+          classSections={classSections}
+          rooms={rooms}
+          academicYears={academicYears}
+          teachers={teachers}
+        />
+      )}
     </SchedulingLayout>
   )
 }

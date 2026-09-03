@@ -10,8 +10,10 @@ import {
   fetchTeachersLookup,
   deleteClassSchedule,
 } from '../../services/scheduleService'
+import { getCurrentUserProfile, hasSchedulingPermission } from '../../services/authService'
 
 export default function ClassSchedules() {
+  const [currentUser, setCurrentUser] = useState(null)
   const [schedules, setSchedules] = useState([])
   const [rooms, setRooms] = useState([])
   const [classSections, setClassSections] = useState([])
@@ -30,17 +32,26 @@ export default function ClassSchedules() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(null)
 
+  const canManage = hasSchedulingPermission(currentUser)
+
   useEffect(() => {
+    loadUser()
     loadSchedules()
-    loadLookups()
   }, [])
+
+  async function loadUser() {
+    const profile = await getCurrentUserProfile()
+    setCurrentUser(profile)
+    if (hasSchedulingPermission(profile)) {
+      loadLookups()
+    }
+  }
 
   async function loadSchedules() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetchClassSchedules()
-      const data = res.results || res || []
+      const data = await fetchClassSchedules({}, true)
       setSchedules(data)
     } catch (err) {
       setError(err.message || 'Failed to load class schedules.')
@@ -52,7 +63,7 @@ export default function ClassSchedules() {
   async function loadLookups() {
     try {
       const [roomsRes, sectionsRes, yearsRes, teachersRes] = await Promise.all([
-        fetchRooms(),
+        fetchRooms({}, true),
         fetchClassSectionsLookup(),
         fetchAcademicYearsLookup(),
         fetchTeachersLookup(),
@@ -70,13 +81,13 @@ export default function ClassSchedules() {
     if (!window.confirm('Are you sure you want to delete this schedule?')) return
     try {
       await deleteClassSchedule(id)
-      loadSchedules()
+      setSchedules((prev) => prev.filter((s) => s.id !== id))
     } catch (err) {
       alert(err.message || 'Failed to delete schedule.')
     }
   }
 
-  // Filter schedules locally for instant response
+  // Filter schedules locally for instant responsiveness
   const filteredSchedules = schedules.filter((s) => {
     const matchesSearch =
       !search ||
@@ -99,16 +110,18 @@ export default function ClassSchedules() {
       title="Class Timetables"
       subtitle="Interactive weekly timetable grid for classes, subjects, and rooms."
       actions={
-        <button
-          onClick={() => {
-            setEditingSchedule(null)
-            setIsModalOpen(true)
-          }}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
-        >
-          <span>＋</span>
-          <span>Add Schedule</span>
-        </button>
+        canManage ? (
+          <button
+            onClick={() => {
+              setEditingSchedule(null)
+              setIsModalOpen(true)
+            }}
+            className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
+          >
+            <span>＋</span>
+            <span>Add Schedule</span>
+          </button>
+        ) : null
       }
     >
       {error && (
@@ -185,24 +198,30 @@ export default function ClassSchedules() {
       <TimetableGrid
         schedules={filteredSchedules}
         loading={loading}
-        onEdit={(item) => {
-          setEditingSchedule(item)
-          setIsModalOpen(true)
-        }}
-        onDelete={handleDelete}
+        onEdit={
+          canManage
+            ? (item) => {
+                setEditingSchedule(item)
+                setIsModalOpen(true)
+              }
+            : null
+        }
+        onDelete={canManage ? handleDelete : null}
       />
 
       {/* Class Schedule Form Modal */}
-      <ClassScheduleModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSaved={loadSchedules}
-        initialData={editingSchedule}
-        classSections={classSections}
-        rooms={rooms}
-        academicYears={academicYears}
-        teachers={teachers}
-      />
+      {canManage && (
+        <ClassScheduleModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSaved={loadSchedules}
+          initialData={editingSchedule}
+          classSections={classSections}
+          rooms={rooms}
+          academicYears={academicYears}
+          teachers={teachers}
+        />
+      )}
     </SchedulingLayout>
   )
 }

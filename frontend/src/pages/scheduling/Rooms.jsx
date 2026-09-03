@@ -3,8 +3,10 @@ import SchedulingLayout from '../../components/scheduling/SchedulingLayout'
 import RoomCard from '../../components/scheduling/RoomCard'
 import RoomModal from '../../components/scheduling/RoomModal'
 import { fetchRooms, deleteRoom } from '../../services/scheduleService'
+import { getCurrentUserProfile, hasSchedulingPermission } from '../../services/authService'
 
 export default function Rooms() {
+  const [currentUser, setCurrentUser] = useState(null)
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,16 +20,23 @@ export default function Rooms() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingRoom, setEditingRoom] = useState(null)
 
+  const canManage = hasSchedulingPermission(currentUser)
+
   useEffect(() => {
+    loadUser()
     loadRooms()
   }, [])
+
+  async function loadUser() {
+    const profile = await getCurrentUserProfile()
+    setCurrentUser(profile)
+  }
 
   async function loadRooms() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetchRooms()
-      const data = res.results || res || []
+      const data = await fetchRooms({}, true)
       setRooms(data)
     } catch (err) {
       setError(err.message || 'Failed to load rooms.')
@@ -40,7 +49,7 @@ export default function Rooms() {
     if (!window.confirm('Are you sure you want to delete this room? This may affect linked schedules.')) return
     try {
       await deleteRoom(id)
-      loadRooms()
+      setRooms((prev) => prev.filter((r) => r.id !== id))
     } catch (err) {
       alert(err.message || 'Failed to delete room.')
     }
@@ -68,16 +77,18 @@ export default function Rooms() {
       title="Campus Rooms"
       subtitle="Manage lecture halls, laboratory spaces, capacity limitations, and room availability."
       actions={
-        <button
-          onClick={() => {
-            setEditingRoom(null)
-            setIsModalOpen(true)
-          }}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
-        >
-          <span>＋</span>
-          <span>Add Room</span>
-        </button>
+        canManage ? (
+          <button
+            onClick={() => {
+              setEditingRoom(null)
+              setIsModalOpen(true)
+            }}
+            className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition hover:bg-blue-700"
+          >
+            <span>＋</span>
+            <span>Add Room</span>
+          </button>
+        ) : null
       }
     >
       {error && (
@@ -155,11 +166,15 @@ export default function Rooms() {
             <RoomCard
               key={room.id}
               room={room}
-              onEdit={(item) => {
-                setEditingRoom(item)
-                setIsModalOpen(true)
-              }}
-              onDelete={handleDelete}
+              onEdit={
+                canManage
+                  ? (item) => {
+                      setEditingRoom(item)
+                      setIsModalOpen(true)
+                    }
+                  : null
+              }
+              onDelete={canManage ? handleDelete : null}
             />
           ))}
         </div>
@@ -170,27 +185,31 @@ export default function Rooms() {
           <p className="text-xs text-slate-500 mt-1 max-w-sm">
             {search || statusFilter !== 'ALL' || minCapacity
               ? 'No rooms match your filter criteria. Try resetting filters.'
-              : 'There are no campus rooms configured yet. Add your first room below.'}
+              : 'There are no campus rooms configured yet.'}
           </p>
-          <button
-            onClick={() => {
-              setEditingRoom(null)
-              setIsModalOpen(true)
-            }}
-            className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
-          >
-            ＋ Add First Room
-          </button>
+          {canManage && (
+            <button
+              onClick={() => {
+                setEditingRoom(null)
+                setIsModalOpen(true)
+              }}
+              className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              ＋ Add First Room
+            </button>
+          )}
         </div>
       )}
 
       {/* Room Modal */}
-      <RoomModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSaved={loadRooms}
-        initialData={editingRoom}
-      />
+      {canManage && (
+        <RoomModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSaved={loadRooms}
+          initialData={editingRoom}
+        />
+      )}
     </SchedulingLayout>
   )
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createRoom, updateRoom } from '../../services/scheduleService'
+import { createRoom, updateRoom, parseApiError } from '../../services/scheduleService'
 
 export default function RoomModal({
   isOpen,
@@ -43,6 +43,12 @@ export default function RoomModal({
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (!formData.capacity || formData.capacity <= 0) {
+      setError('Room capacity must be greater than zero.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -54,7 +60,7 @@ export default function RoomModal({
       onSaved()
       onClose()
     } catch (err) {
-      setError(err.message || 'Failed to save room.')
+      setError(parseApiError(err))
     } finally {
       setSubmitting(false)
     }

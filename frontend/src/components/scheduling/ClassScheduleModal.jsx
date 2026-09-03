@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createClassSchedule, updateClassSchedule } from '../../services/scheduleService'
+import { createClassSchedule, updateClassSchedule, parseApiError } from '../../services/scheduleService'
 
 const DAYS = [
   { value: 'MONDAY', label: 'Monday' },
@@ -69,6 +69,13 @@ export default function ClassScheduleModal({
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    // Client-side validation: end time must be after start time
+    if (formData.start_time && formData.end_time && formData.start_time >= formData.end_time) {
+      setError('End time must be after start time.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -80,7 +87,7 @@ export default function ClassScheduleModal({
       onSaved()
       onClose()
     } catch (err) {
-      setError(err.message || 'Failed to save schedule. Check for conflicts.')
+      setError(parseApiError(err))
     } finally {
       setSubmitting(false)
     }
