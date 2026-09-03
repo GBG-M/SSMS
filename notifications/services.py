@@ -1,29 +1,34 @@
 import logging
 from typing import List, Optional
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from students.models import Student
+
 from accounts.models import ParentProfile
+from students.models import Student
+
 from .models import Notification
+
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
 def create_notification(
-    recipient: User,
+    recipient,
     title: str,
     message: str,
-    notification_type: str = 'SYSTEM_ALERT',
-    sender: Optional[User] = None,
+    notification_type: str = "SYSTEM_ALERT",
+    sender=None,
     related_student: Optional[Student] = None,
-    priority: str = 'NORMAL',
+    priority: str = "NORMAL",
 ) -> Notification:
     """
     Create a single notification record for a specific user recipient.
     """
-    roles = [r.name for r in recipient.roles.all()] if recipient else []
-    recipient_role = roles[0] if roles else ''
+
+    roles = [role.name for role in recipient.roles.all()] if recipient else []
+    recipient_role = roles[0] if roles else ""
 
     notification = Notification.objects.create(
         recipient=recipient,
@@ -35,6 +40,7 @@ def create_notification(
         recipient_role=recipient_role,
         related_student=related_student,
     )
+
     return notification
 
 
@@ -42,21 +48,23 @@ def notify_student_and_parents(
     student: Student,
     title: str,
     message: str,
-    notification_type: str = 'SYSTEM_ALERT',
-    sender: Optional[User] = None,
-    priority: str = 'NORMAL',
+    notification_type: str = "SYSTEM_ALERT",
+    sender=None,
+    priority: str = "NORMAL",
     include_student: bool = True,
     include_parents: bool = True,
 ) -> List[Notification]:
     """
     Send notifications to a student user and all linked parent users.
     """
+
     created_notifications = []
 
     with transaction.atomic():
-        # 1. Notify Student user (if linked)
+
+        # 1. Notify the student
         if include_student and student.user:
-            notif = create_notification(
+            notification = create_notification(
                 recipient=student.user,
                 title=title,
                 message=message,
@@ -65,16 +73,21 @@ def notify_student_and_parents(
                 related_student=student,
                 priority=priority,
             )
-            created_notifications.append(notif)
 
-        # 2. Notify linked Parent users
+            created_notifications.append(notification)
+
+        # 2. Notify linked parents
         if include_parents:
-            # Look up parent profiles linked to this student
-            parent_profiles = ParentProfile.objects.filter(students=student).select_related('user')
-            for parent_prof in parent_profiles:
-                if parent_prof.user:
-                    notif = create_notification(
-                        recipient=parent_prof.user,
+            parent_profiles = (
+                ParentProfile.objects
+                .filter(students=student)
+                .select_related("user")
+            )
+
+            for parent_profile in parent_profiles:
+                if parent_profile.user:
+                    notification = create_notification(
+                        recipient=parent_profile.user,
                         title=f"[{student.full_name}] {title}",
                         message=message,
                         notification_type=notification_type,
@@ -82,7 +95,8 @@ def notify_student_and_parents(
                         related_student=student,
                         priority=priority,
                     )
-                    created_notifications.append(notif)
+
+                    created_notifications.append(notification)
 
     return created_notifications
 
@@ -91,21 +105,30 @@ def notify_class_section(
     class_section,
     title: str,
     message: str,
-    notification_type: str = 'TEACHER_MESSAGE',
-    sender: Optional[User] = None,
-    priority: str = 'NORMAL',
+    notification_type: str = "TEACHER_MESSAGE",
+    sender=None,
+    priority: str = "NORMAL",
     include_parents: bool = True,
 ) -> List[Notification]:
     """
-    Broadcast notification to all active enrolled students (and parents) in a class section.
+    Broadcast notification to all active enrolled students
+    and their parents in a class section.
     """
+
     created_notifications = []
-    enrollments = class_section.enrollments.filter(status='ACTIVE').select_related('student', 'student__user')
+
+    enrollments = (
+        class_section.enrollments
+        .filter(status="ACTIVE")
+        .select_related("student", "student__user")
+    )
 
     with transaction.atomic():
+
         for enrollment in enrollments:
             student = enrollment.student
-            notifs = notify_student_and_parents(
+
+            notifications = notify_student_and_parents(
                 student=student,
                 title=title,
                 message=message,
@@ -115,6 +138,8 @@ def notify_class_section(
                 include_student=True,
                 include_parents=include_parents,
             )
-            created_notifications.extend(notifs)
+
+            created_notifications.extend(notifications)
 
     return created_notifications
+

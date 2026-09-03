@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { logout } from '../../services/authService'
 
 const API_BASE_URL = '/api/accounts'
@@ -115,7 +115,7 @@ export default function Dashboard() {
         <nav className="space-y-1 px-4 py-6">
 
           <a
-            href="/dashboard"
+            href="#"
             className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium"
           >
             <span className="mr-3">
@@ -137,7 +137,7 @@ export default function Dashboard() {
           </a>
 
           <a
-            href="/academics"
+            href="#"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -158,8 +158,8 @@ export default function Dashboard() {
             Finance
           </a>
 
-          <Link
-            to="/scheduling"
+          <a
+            href="#"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -167,6 +167,17 @@ export default function Dashboard() {
             </span>
 
             Scheduling
+          </a>
+
+          <Link
+            to="/notifications"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              🔔
+            </span>
+
+            Notifications
           </Link>
 
         </nav>
@@ -193,25 +204,22 @@ export default function Dashboard() {
 
             {/* User */}
             <div className="hidden text-right sm:block">
-  <button
-    type="button"
-    onClick={() => navigate('/profile')}
-    className="text-right"
-  >
-    <p className="text-sm font-semibold text-slate-800 hover:text-blue-600">
-      {loadingProfile ? 'Loading...' : displayName}
-    </p>
 
-  </button>
-</div>
+              <p className="text-sm font-semibold text-slate-800">
+                {loadingProfile
+                  ? 'Loading...'
+                  : displayName}
+              </p>
 
-            <button
-  type="button"
-  onClick={() => navigate('/profile')}
-  className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 transition hover:bg-blue-200"
->
-  {loadingProfile ? '...' : avatarLetter}
-</button>
+          
+
+            </div>
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
+              {loadingProfile
+                ? '...'
+                : avatarLetter}
+            </div>
 
             <button
               type="button"
@@ -419,26 +427,9 @@ export default function Dashboard() {
               </div>
 
               <Link
-                to="/scheduling"
-                className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md block text-left"
+                to="/notifications"
+                className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md"
               >
-
-                <div className="mb-4 text-3xl">
-                  📅
-                </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Scheduling
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage timetables, attendance,
-                  and scheduling.
-                </p>
-
-              </Link>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
 
                 <div className="mb-4 text-3xl">
                   🔔
@@ -451,6 +442,23 @@ export default function Dashboard() {
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   Manage school announcements and
                   important notifications.
+                </p>
+
+              </Link>
+
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
+
+                <div className="mb-4 text-3xl">
+                  📅
+                </div>
+
+                <h3 className="font-bold text-slate-900">
+                  Scheduling
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage timetables, attendance,
+                  and scheduling.
                 </p>
 
               </div>
