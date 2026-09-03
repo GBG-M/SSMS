@@ -48,7 +48,7 @@ export async function createFeeType(payload) {
     return {
       ok: response.ok,
       status: response.status,
-      data: collectionData(data),
+      data,
     }
   } catch (error) {
     return {
@@ -120,7 +120,7 @@ export async function createStudentFee(payload) {
     return {
       ok: response.ok,
       status: response.status,
-      data: collectionData(data),
+      data,
     }
   } catch (error) {
     return {
@@ -142,7 +142,7 @@ export async function updateStudentFee(feeId, payload) {
     return {
       ok: response.ok,
       status: response.status,
-      data: collectionData(data),
+      data,
     }
   } catch (error) {
     return {

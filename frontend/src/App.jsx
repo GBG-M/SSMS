@@ -382,7 +382,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/finance/payments"
           element={
