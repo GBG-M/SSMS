@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from datetime import datetime, timedelta
+from accounts.models import Role
+from .permissions import StudentAccessPermission
 from .models import Student, AcademicRecord, Attendance, StudentDocument
 from .serializers import (
     StudentSerializer, StudentListSerializer, 
@@ -17,7 +19,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     """Student ViewSet with CRUD operations and custom actions"""
     
     queryset = Student.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, StudentAccessPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'gender', 'current_grade', 'current_class']
     search_fields = ['first_name', 'last_name', 'student_id', 'email', 'phone_number']
@@ -31,6 +33,30 @@ class StudentViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return queryset.none()
+
+        role_names = {r.name for r in user.roles.all()}
+
+        # Role-based scoping
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
+            pass
+        elif Role.TEACHER in role_names:
+            pass
+        elif Role.STUDENT in role_names:
+            if hasattr(user, 'student_profile'):
+                queryset = queryset.filter(id=user.student_profile.id)
+            else:
+                return queryset.none()
+        elif Role.PARENT in role_names:
+            if hasattr(user, 'parent_profile'):
+                queryset = queryset.filter(id__in=user.parent_profile.students.values_list('id', flat=True))
+            else:
+                return queryset.none()
+        else:
+            return queryset.none()
         
         # Filter by search query
         search = self.request.query_params.get('search', None)
@@ -211,13 +237,33 @@ class AcademicRecordViewSet(viewsets.ModelViewSet):
     
     queryset = AcademicRecord.objects.all()
     serializer_class = AcademicRecordSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, StudentAccessPermission]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['student', 'term', 'academic_year']
     ordering_fields = ['academic_year', 'gpa', 'percentage']
     
     def get_queryset(self):
         queryset = super().get_queryset()
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return queryset.none()
+
+        role_names = {r.name for r in user.roles.all()}
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names or Role.TEACHER in role_names:
+            pass
+        elif Role.STUDENT in role_names:
+            if hasattr(user, 'student_profile'):
+                queryset = queryset.filter(student=user.student_profile)
+            else:
+                return queryset.none()
+        elif Role.PARENT in role_names:
+            if hasattr(user, 'parent_profile'):
+                queryset = queryset.filter(student__in=user.parent_profile.students.all())
+            else:
+                return queryset.none()
+        else:
+            return queryset.none()
         
         # Filter by student
         student_id = self.request.query_params.get('student_id', None)
@@ -232,7 +278,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, StudentAccessPermission]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['student', 'status', 'date']
     ordering_fields = ['date']
@@ -242,6 +288,26 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return queryset.none()
+
+        role_names = {r.name for r in user.roles.all()}
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names or Role.TEACHER in role_names:
+            pass
+        elif Role.STUDENT in role_names:
+            if hasattr(user, 'student_profile'):
+                queryset = queryset.filter(student=user.student_profile)
+            else:
+                return queryset.none()
+        elif Role.PARENT in role_names:
+            if hasattr(user, 'parent_profile'):
+                queryset = queryset.filter(student__in=user.parent_profile.students.all())
+            else:
+                return queryset.none()
+        else:
+            return queryset.none()
         
         # Filter by date range
         start_date = self.request.query_params.get('start_date', None)
@@ -258,7 +324,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     def today(self, request):
         """Get today's attendance"""
         today = datetime.now().date()
-        attendance = Attendance.objects.filter(date=today)
+        attendance = self.get_queryset().filter(date=today)
         serializer = AttendanceSerializer(attendance, many=True)
         return Response(serializer.data)
 
@@ -268,9 +334,34 @@ class StudentDocumentViewSet(viewsets.ModelViewSet):
     
     queryset = StudentDocument.objects.all()
     serializer_class = StudentDocumentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, StudentAccessPermission]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['student', 'document_type']
     
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return queryset.none()
+
+        role_names = {r.name for r in user.roles.all()}
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names or Role.TEACHER in role_names:
+            pass
+        elif Role.STUDENT in role_names:
+            if hasattr(user, 'student_profile'):
+                queryset = queryset.filter(student=user.student_profile)
+            else:
+                return queryset.none()
+        elif Role.PARENT in role_names:
+            if hasattr(user, 'parent_profile'):
+                queryset = queryset.filter(student__in=user.parent_profile.students.all())
+            else:
+                return queryset.none()
+        else:
+            return queryset.none()
+
+        return queryset
