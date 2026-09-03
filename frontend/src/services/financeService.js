@@ -2,6 +2,10 @@ import { getToken } from './authService'
 
 const API_BASE_URL = '/api/finance'
 
+function collectionData(data) {
+  return Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : [])
+}
+
 function getHeaders() {
   const token = getToken()
   return {
@@ -22,7 +26,7 @@ export async function getFeeTypes() {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {
@@ -44,7 +48,7 @@ export async function createFeeType(payload) {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {
@@ -69,7 +73,7 @@ export async function getFeeStructures(params = {}) {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {
@@ -94,7 +98,7 @@ export async function getStudentFees(params = {}) {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {
@@ -116,7 +120,7 @@ export async function createStudentFee(payload) {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {
@@ -138,7 +142,7 @@ export async function updateStudentFee(feeId, payload) {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {
@@ -163,7 +167,7 @@ export async function getInvoices(params = {}) {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {
@@ -231,7 +235,7 @@ export async function getPayments(params = {}) {
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: collectionData(data),
     }
   } catch (error) {
     return {

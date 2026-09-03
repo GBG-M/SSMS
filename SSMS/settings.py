@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django_otp.plugins.otp_totp",
     "rest_framework",
     "rest_framework.authtoken",
+    "django_filters",
     "accounts",
     "corsheaders",
     "students",
