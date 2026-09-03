@@ -115,7 +115,7 @@ export default function Dashboard() {
         <nav className="space-y-1 px-4 py-6">
 
           <a
-            href="#"
+            href="/dashboard"
             className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium"
           >
             <span className="mr-3">
@@ -137,7 +137,7 @@ export default function Dashboard() {
           </a>
 
           <a
-            href="#"
+            href="/academics"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -193,22 +193,25 @@ export default function Dashboard() {
 
             {/* User */}
             <div className="hidden text-right sm:block">
+  <button
+    type="button"
+    onClick={() => navigate('/profile')}
+    className="text-right"
+  >
+    <p className="text-sm font-semibold text-slate-800 hover:text-blue-600">
+      {loadingProfile ? 'Loading...' : displayName}
+    </p>
 
-              <p className="text-sm font-semibold text-slate-800">
-                {loadingProfile
-                  ? 'Loading...'
-                  : displayName}
-              </p>
+  </button>
+</div>
 
-          
-
-            </div>
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
-              {loadingProfile
-                ? '...'
-                : avatarLetter}
-            </div>
+            <button
+  type="button"
+  onClick={() => navigate('/profile')}
+  className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 transition hover:bg-blue-200"
+>
+  {loadingProfile ? '...' : avatarLetter}
+</button>
 
             <button
               type="button"
