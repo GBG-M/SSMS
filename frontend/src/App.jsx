@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-
+import Notifications from './features/notifications/Notifications'
 import Home from './pages/Home/Home'
 import Login from './pages/auth/login'
 import ForcePasswordReset from './pages/auth/ForcePasswordReset'
@@ -66,6 +66,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="/notifications"
+  element={
+    <ProtectedRoute>
+      <Notifications />
+    </ProtectedRoute>
+  }
+/>
         <Route
   path="/profile"
   element={

@@ -1,4 +1,4 @@
-import { getAuthHeader } from "../../services/authService";
+import { getToken } from "../../services/authService";
 
 const API_URL = "/api/notifications/";
 
@@ -7,7 +7,7 @@ async function request(url, options = {}) {
     ...options,
     headers: {
       Accept: "application/json",
-      Authorization: getAuthHeader(),
+      Authorization: `Token ${getToken()}`,
       ...options.headers,
     },
   });
