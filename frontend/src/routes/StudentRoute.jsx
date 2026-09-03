@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { isAuthenticated, getToken } from "../services/authService";
+import {
+  clearAuthSession,
+  isAuthenticated,
+  getToken,
+} from "../services/authService";
 
 export default function StudentRoute({ children }) {
   const navigate = useNavigate();
@@ -27,8 +31,7 @@ export default function StudentRoute({ children }) {
         });
 
         if (response.status === 401) {
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("userEmail");
+          clearAuthSession();
           navigate("/login", { replace: true });
           return;
         }
