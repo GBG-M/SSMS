@@ -103,6 +103,15 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A user with this email already exists.")
         return value
 
+    def update(self, instance, validated_data):
+        role_names = self.initial_data.get('role_names') or self.initial_data.get('roles')
+        if role_names is not None and isinstance(role_names, list):
+            instance.roles.clear()
+            for r_name in role_names:
+                role_obj, _ = Role.objects.get_or_create(name=str(r_name).lower())
+                instance.roles.add(role_obj)
+        return super().update(instance, validated_data)
+
 
 class ChangePasswordSerializer(serializers.Serializer):
     """
