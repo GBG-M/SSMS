@@ -1,50 +1,45 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { logout } from "../../services/authService";
+import { logout, getCurrentUserProfile } from "../../services/authService";
+import { getMyStudentProfile } from "../../services/studentService";
 
 export default function StudentSidebar() {
   const navigate = useNavigate();
-
-  const [student, setStudent] = useState(null);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    fetchStudentProfile();
-  }, []);
+    async function loadData() {
+      try {
+        const [user, studentProfile] = await Promise.all([
+          getCurrentUserProfile(),
+          getMyStudentProfile().catch(() => null),
+        ]);
 
-  async function fetchStudentProfile() {
-    const token = localStorage.getItem("authToken");
-
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/accounts/profile/", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("authToken");
-          navigate("/login");
-          return;
+        if (studentProfile) {
+          setProfile({
+            ...user,
+            ...studentProfile,
+            fullName: studentProfile.full_name || user?.full_name || "Student",
+            studentId: studentProfile.student_id || "Student Portal",
+            gradeClass: studentProfile.current_grade
+              ? `Grade ${studentProfile.current_grade}${studentProfile.current_class ? ` • ${studentProfile.current_class}` : ""}`
+              : "",
+          });
+        } else if (user) {
+          setProfile({
+            ...user,
+            fullName: user.full_name || user.username || "Student",
+            studentId: user.email || "Student Portal",
+            gradeClass: "",
+          });
         }
-
-        return;
+      } catch (err) {
+        console.error("Failed to load student sidebar profile:", err);
       }
-
-      setStudent(data);
-    } catch (error) {
-      console.error("Failed to load student profile:", error);
     }
-  }
+
+    loadData();
+  }, []);
 
   const menuItems = [
     {
@@ -79,76 +74,79 @@ export default function StudentSidebar() {
     navigate("/login");
   };
 
-  const studentName =
-    student?.first_name || student?.username || "Student";
-
-  const fullName =
-    student?.first_name || student?.last_name
-      ? `${student?.first_name || ""} ${student?.last_name || ""}`.trim()
-      : studentName;
-
   return (
-    <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col bg-gray-900 text-white">
-
-      {/* Logo */}
-      <div className="border-b border-gray-700 px-6 py-6">
-        <h1 className="text-xl font-bold">SSMS</h1>
-
-        <p className="mt-1 text-sm text-gray-400">
-          Student Portal
-        </p>
+    <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col bg-slate-900 text-white shadow-xl z-20">
+      {/* Brand Header */}
+      <div className="border-b border-slate-800 px-6 py-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold text-white shadow-md">
+            🎓
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-white">SSMS Portal</h1>
+            <p className="text-xs text-blue-400 font-medium">Student Dashboard</p>
+          </div>
+        </div>
       </div>
 
-      {/* Student */}
-      <div className="border-b border-gray-700 px-6 py-5">
-        <p className="font-medium">
-          {fullName}
+      {/* Student Profile Card */}
+      <div className="border-b border-slate-800 bg-slate-800/40 px-6 py-4">
+        <p className="text-sm font-semibold text-white truncate">
+          {profile?.fullName || "Student Account"}
         </p>
-
-        <p className="text-sm text-gray-400">
-          {student?.student_id || "Student"}
+        <p className="text-xs font-medium text-slate-400 mt-0.5">
+          {profile?.studentId || "STU-PORTAL"}
         </p>
+        {profile?.gradeClass && (
+          <span className="mt-2 inline-block rounded-full bg-blue-900/50 border border-blue-700/50 px-2.5 py-0.5 text-[11px] font-medium text-blue-300">
+            {profile.gradeClass}
+          </span>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6">
-
-        <p className="mb-3 px-3 text-xs font-semibold uppercase text-gray-500">
-          Student Menu
+      <nav className="flex-1 px-4 py-5 overflow-y-auto space-y-1.5">
+        <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+          Navigation
         </p>
 
-        <div className="space-y-2">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition ${
-                  isActive
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-300 hover:bg-gray-800"
-                }`
-              }
-            >
-              <span>{item.icon}</span>
-              <span>{item.name}</span>
-            </NavLink>
-          ))}
-        </div>
+        {menuItems.map((item) => (
+          <NavLink
+            key={item.name}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition duration-150 ${
+                isActive
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+              }`
+            }
+          >
+            <span className="text-base">{item.icon}</span>
+            <span>{item.name}</span>
+          </NavLink>
+        ))}
       </nav>
 
-      {/* Logout */}
-      <div className="border-t border-gray-700 p-4">
+      {/* Quick Links / Logout */}
+      <div className="border-t border-slate-800 p-4 space-y-2">
+        <NavLink
+          to="/dashboard"
+          className="flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition"
+        >
+          <span>🏠</span>
+          <span>Main System Portal</span>
+        </NavLink>
+
         <button
           type="button"
           onClick={handleLogout}
-          className="w-full rounded-lg px-3 py-3 text-left text-sm text-gray-300 transition hover:bg-gray-800"
+          className="flex w-full items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-medium text-red-400 hover:bg-red-950/40 hover:text-red-300 transition"
         >
-          🚪 Logout
+          <span>🚪</span>
+          <span>Sign Out</span>
         </button>
       </div>
-
     </aside>
   );
 }
-
