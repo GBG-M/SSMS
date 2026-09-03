@@ -52,6 +52,7 @@ import FinanceDashboard from "./pages/finance/FinanceDashboard";
 import StudentFees from "./pages/finance/StudentFees";
 import Invoices from "./pages/finance/Invoices";
 import FeeTypes from "./pages/finance/FeeTypes";
+import Payments from "./pages/finance/Payments";
 
 function App() {
   return (
@@ -322,6 +323,15 @@ function App() {
           element={
             <ProtectedRoute>
               <FeeTypes />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/finance/payments"
+          element={
+            <ProtectedRoute>
+              <Payments />
             </ProtectedRoute>
           }
         />

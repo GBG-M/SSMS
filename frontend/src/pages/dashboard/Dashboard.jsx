@@ -125,8 +125,8 @@ export default function Dashboard() {
             Dashboard
           </a>
 
-          <a
-            href="#"
+          <Link
+            to="/finance/dashboard"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -134,7 +134,7 @@ export default function Dashboard() {
             </span>
 
             Students
-          </a>
+          </Link>
 
           <a
             href="#"

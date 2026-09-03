@@ -1,4 +1,5 @@
 from django.db.models import Q, Sum
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
 from rest_framework.permissions import IsAuthenticated
 
@@ -18,7 +19,7 @@ class FeeTypeViewSet(viewsets.ModelViewSet):
     queryset = FeeType.objects.all()
     serializer_class = FeeTypeSerializer
     permission_classes = [IsAuthenticated, FinanceAccessPermission]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'category', 'academic_year']
     ordering_fields = ['name', 'amount', 'academic_year']
 
@@ -27,7 +28,7 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
     queryset = FeeStructure.objects.select_related('fee_type').all()
     serializer_class = FeeStructureSerializer
     permission_classes = [IsAuthenticated, FinanceAccessPermission]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['fee_type__name', 'grade_level', 'class_name', 'program', 'academic_year']
     ordering_fields = ['academic_year', 'amount', 'due_date']
 
@@ -36,7 +37,7 @@ class StudentFeeViewSet(viewsets.ModelViewSet):
     queryset = StudentFee.objects.select_related('student', 'fee_type', 'fee_structure').all()
     serializer_class = StudentFeeSerializer
     permission_classes = [IsAuthenticated, FinanceAccessPermission]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['student', 'fee_type', 'status', 'academic_year']
     search_fields = ['student__first_name', 'student__last_name', 'student__student_id', 'fee_type__name']
     ordering_fields = ['amount_due', 'amount_paid', 'due_date']
@@ -63,7 +64,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.select_related('student', 'issued_by').all()
     serializer_class = InvoiceSerializer
     permission_classes = [IsAuthenticated, FinanceAccessPermission]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['student', 'status', 'due_date']
     search_fields = ['invoice_number', 'student__first_name', 'student__last_name', 'student__student_id']
     ordering_fields = ['issue_date', 'due_date', 'total_amount']
@@ -90,7 +91,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related('invoice', 'student', 'received_by').all()
     serializer_class = PaymentSerializer
     permission_classes = [IsAuthenticated, FinanceAccessPermission]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['student', 'invoice', 'payment_method', 'status']
     search_fields = ['transaction_reference', 'student__first_name', 'student__last_name']
     ordering_fields = ['payment_date', 'amount']
