@@ -13,6 +13,15 @@ import Users from "./pages/admin/Users";
 import UserDetails from "./pages/admin/UserDetails";
 import EditUser from "./pages/admin/EditUser";
 
+import AcademicsOverview from "./pages/academics/AcademicsOverview";
+import AcademicYears from "./pages/academics/AcademicYears";
+import Subjects from "./pages/academics/Subjects";
+import Courses from "./pages/academics/Courses";
+import ClassSections from "./pages/academics/ClassSections";
+import Enrollments from "./pages/academics/Enrollments";
+import GradeBook from "./pages/academics/GradeBook";
+import Assessments from "./pages/academics/Assessments";
+
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentProfile from "./pages/student/StudentProfile";
 import AcademicRecords from "./pages/student/AcademicRecords";
@@ -34,7 +43,6 @@ function App() {
           path="/force-password-reset"
           element={<ForcePasswordReset />}
         />
-
 
         {/* ================= GENERAL PROTECTED ================= */}
 
@@ -65,7 +73,6 @@ function App() {
           }
         />
 
-
         {/* ================= ADMIN ================= */}
 
         <Route
@@ -95,6 +102,79 @@ function App() {
           }
         />
 
+        {/* ================= ACADEMICS ================= */}
+
+        <Route
+          path="/academics"
+          element={
+            <ProtectedRoute>
+              <AcademicsOverview />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/academics/years"
+          element={
+            <ProtectedRoute>
+              <AcademicYears />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/academics/subjects"
+          element={
+            <ProtectedRoute>
+              <Subjects />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/academics/courses"
+          element={
+            <ProtectedRoute>
+              <Courses />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/academics/sections"
+          element={
+            <ProtectedRoute>
+              <ClassSections />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/academics/enrollments"
+          element={
+            <ProtectedRoute>
+              <Enrollments />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/academics/grades"
+          element={
+            <ProtectedRoute>
+              <GradeBook />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/academics/assessments"
+          element={
+            <ProtectedRoute>
+              <Assessments />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ================= STUDENT ================= */}
 
@@ -143,7 +223,6 @@ function App() {
           }
         />
 
-
         {/* ================= UNKNOWN URL ================= */}
 
         <Route
@@ -157,4 +236,3 @@ function App() {
 }
 
 export default App;
-
