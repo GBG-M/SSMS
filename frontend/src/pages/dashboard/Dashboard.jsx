@@ -114,19 +114,19 @@ export default function Dashboard() {
         {/* Navigation */}
         <nav className="space-y-1 px-4 py-6">
 
-          <a
-            href="#"
-            className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium"
+          <Link
+            to="/dashboard"
+            className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white"
           >
             <span className="mr-3">
               🏠
             </span>
 
             Dashboard
-          </a>
+          </Link>
 
           <Link
-            to="/finance/dashboard"
+            to="/student/dashboard"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -136,8 +136,8 @@ export default function Dashboard() {
             Students
           </Link>
 
-          <a
-            href="#"
+          <Link
+            to="/academics"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -145,10 +145,10 @@ export default function Dashboard() {
             </span>
 
             Academics
-          </a>
+          </Link>
 
-          <a
-            href="#"
+          <Link
+            to="/finance/dashboard"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -156,10 +156,10 @@ export default function Dashboard() {
             </span>
 
             Finance
-          </a>
+          </Link>
 
-          <a
-            href="#"
+          <Link
+            to="/scheduling"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -167,7 +167,7 @@ export default function Dashboard() {
             </span>
 
             Scheduling
-          </a>
+          </Link>
 
           <Link
             to="/notifications"
@@ -178,6 +178,17 @@ export default function Dashboard() {
             </span>
 
             Notifications
+          </Link>
+
+          <Link
+            to="/users"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              ⚙️
+            </span>
+
+            Administration
           </Link>
 
         </nav>
@@ -375,110 +386,101 @@ export default function Dashboard() {
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 1. Student Management */}
+              <Link
+                to="/student/dashboard"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   👨‍🎓
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Student Management
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Student Management →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage student profiles, admissions,
-                  and documentation.
+                  Manage student profiles, admissions, attendance, and academic records.
                 </p>
+              </Link>
 
-              </div>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 2. Academic Management */}
+              <Link
+                to="/academics"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   📚
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Academic Management
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Academic Management →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage classes, subjects, grades,
-                  and academic results.
+                  Manage curriculum, subjects, class sections, and the official gradebook.
                 </p>
+              </Link>
 
-              </div>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 3. Finance */}
+              <Link
+                to="/finance/dashboard"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   💰
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Finance
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Finance & Billing →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage school fees, billing,
-                  and payment records.
+                  Manage school fee structures, student invoices, and ledger balances.
                 </p>
+              </Link>
 
-              </div>
-
+              {/* 4. Notifications */}
               <Link
                 to="/notifications"
-                className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
               >
-
                 <div className="mb-4 text-3xl">
                   🔔
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Notifications
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Notifications →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage school announcements and
-                  important notifications.
+                  View and manage school-wide announcements and alert dispatches.
                 </p>
-
               </Link>
 
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 5. Scheduling */}
+              <Link
+                to="/scheduling"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   📅
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Scheduling
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Scheduling & Timetables →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage timetables, attendance,
-                  and scheduling.
+                  Manage weekly class timetables, examination sessions, and room bookings.
                 </p>
+              </Link>
 
-              </div>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 6. Administration */}
+              <Link
+                to="/users"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   ⚙️
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Administration
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Administration & Users →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage users, roles, permissions,
-                  and system settings.
+                  Manage user accounts, system roles, staff permissions, and security.
                 </p>
-
-              </div>
+              </Link>
 
             </div>
 
