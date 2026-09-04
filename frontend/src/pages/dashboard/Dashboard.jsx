@@ -126,7 +126,7 @@ export default function Dashboard() {
           </a>
 
           <Link
-            to="/finance/dashboard"
+            to="/student"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -136,8 +136,8 @@ export default function Dashboard() {
             Students
           </Link>
 
-          <a
-            href="#"
+          <Link
+            to="/academics"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -145,10 +145,10 @@ export default function Dashboard() {
             </span>
 
             Academics
-          </a>
+          </Link>
 
-          <a
-            href="#"
+          <Link
+            to="/finance/dashboard"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -156,10 +156,10 @@ export default function Dashboard() {
             </span>
 
             Finance
-          </a>
+          </Link>
 
-          <a
-            href="#"
+          <Link
+            to="/scheduling"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -167,7 +167,7 @@ export default function Dashboard() {
             </span>
 
             Scheduling
-          </a>
+          </Link>
 
           <Link
             to="/notifications"

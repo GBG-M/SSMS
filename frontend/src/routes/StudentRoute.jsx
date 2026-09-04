@@ -44,7 +44,9 @@ export default function StudentRoute({ children }) {
         const profile = await response.json();
         const roles = profile.role_names || [];
 
-        setIsStudent(roles.includes("STUDENT"));
+        setIsStudent(
+          roles.some((role) => role.toLowerCase() === "student")
+        );
       } catch (error) {
         console.error("Failed to verify student role:", error);
         setIsStudent(false);
