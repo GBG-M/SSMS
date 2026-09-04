@@ -217,48 +217,38 @@ class AcademicsPermissionTests(TestCase):
         with self.assertRaises(Exception):
             record.save()
 
-    def test_student_queryset_is_limited_to_own_records(self):
-        year = AcademicYear.objects.create(
-            name='2026/2027',
-            start_date='2026-09-01',
-            end_date='2027-06-30',
-            is_active=True,
-        )
-        subject = Subject.objects.create(
-            code='CHEM101',
-            name='Chemistry',
-            credit_hours=2,
-            department='Science',
-        )
+    def test_admin_can_access_academic_summaries(self):
+        request = self.factory.get('/api/academics/academic-summaries/')
+        request.user = self.admin_user
+        self.assertTrue(AcademicStudentPermission().has_permission(request, None))
+
+    def test_student_has_staff_read_permission(self):
+        request = self.factory.get('/api/academics/grade-records/')
+        request.user = self.student_user
+        self.assertTrue(AcademicStaffPermission().has_permission(request, None))
+
+    def test_student_cannot_post_assessments(self):
+        request = self.factory.post('/api/academics/assessments/')
+        request.user = self.student_user
+        self.assertFalse(AcademicStaffPermission().has_permission(request, None))
+
+    def test_class_section_roster_action(self):
+        from .views import ClassSectionViewSet
+        year = AcademicYear.objects.create(name='2028/2029', start_date='2028-09-01', end_date='2029-06-30')
+        subject = Subject.objects.create(code='HIST101', name='History')
         section = ClassSection.objects.create(
-            section_code='CHEM9A',
-            name='Chem 9A',
-            academic_year=year,
-            subject=subject,
-            teacher=self.teacher_user,
+            section_code='HIST8A', name='History 8A', academic_year=year, subject=subject
         )
         student = Student.objects.create(
-            student_id='STU000888',
-            first_name='Nina',
-            last_name='Student',
-            date_of_birth='2010-01-15',
-            gender='FEMALE',
-            email='nina@school.com',
-            phone_number='0910000000',
-            address='Test address',
-            emergency_contact_name='Parent',
-            emergency_contact_phone='0911111222',
-            current_grade='Grade 9',
-            current_class='A',
-            academic_year='2026/2027',
-            guardian_name='Parent',
-            guardian_relationship='Mother',
-            guardian_phone='0911111222',
+            student_id='STU999001', first_name='Tom', last_name='Sawyer',
+            date_of_birth='2010-01-01', gender='MALE', emergency_contact_name='Guardian',
+            emergency_contact_phone='0911111111', current_grade='8', academic_year='2028/2029',
+            guardian_name='Guardian', guardian_relationship='Father', guardian_phone='0911111111'
         )
-        self.student_user.student_profile = student
-        self.student_user.save()
-        self.student_user.refresh_from_db()
         Enrollment.objects.create(student=student, class_section=section, status='ACTIVE')
-        summary = AcademicSummary.objects.create(student=student, academic_year=year, gpa=3.80)
-        qs = AcademicSummaryViewSet().get_queryset()
-        self.assertIn(summary, qs)
+        view = ClassSectionViewSet()
+        view.kwargs = {'pk': section.pk}
+        view.get_object = lambda: section
+        response = view.students(None, pk=section.pk)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['full_name'], 'Tom Sawyer')

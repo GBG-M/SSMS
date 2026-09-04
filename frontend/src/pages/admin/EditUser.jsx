@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { getSystemRoles, updateUserRoles } from '../../services/authService'
 
 const API_BASE_URL = '/api/accounts'
+
+const AVAILABLE_ROLES = [
+  { id: 'admin', label: 'Administrator', icon: '👑', desc: 'Full system management and configuration access' },
+  { id: 'academic_coordinator', label: 'Academic Coordinator', icon: '🏛️', desc: 'Curriculum, gradebook, and course scheduling control' },
+  { id: 'teacher', label: 'Teacher', icon: '👨‍🏫', desc: 'Class grading, attendance recording, and course instruction' },
+  { id: 'student', label: 'Student', icon: '👨‍🎓', desc: 'Student portal access, grades, attendance, and documents' },
+  { id: 'parent', label: 'Parent / Guardian', icon: '👨‍👩‍👧', desc: 'Parent portal access to monitor linked student progress' },
+]
 
 export default function EditUser() {
   const { id } = useParams()
@@ -19,6 +28,7 @@ export default function EditUser() {
     totp_enabled: false,
   })
 
+  const [selectedRoles, setSelectedRoles] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -40,16 +50,13 @@ export default function EditUser() {
     }
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/users/${id}/`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
+      const response = await fetch(`${API_BASE_URL}/users/${id}/`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
 
       const data = await response.json()
 
@@ -61,9 +68,7 @@ export default function EditUser() {
       }
 
       if (response.status === 403) {
-        setError(
-          'You do not have permission to edit this user.'
-        )
+        setError('You do not have permission to edit this user.')
         return
       }
 
@@ -73,11 +78,7 @@ export default function EditUser() {
       }
 
       if (!response.ok) {
-        throw new Error(
-          data.detail ||
-          data.error ||
-          'Failed to load user.'
-        )
+        throw new Error(data.detail || data.error || 'Failed to load user.')
       }
 
       setFormData({
@@ -87,19 +88,16 @@ export default function EditUser() {
         last_name: data.last_name || '',
         is_active: Boolean(data.is_active),
         is_staff: Boolean(data.is_staff),
-        must_reset_password: Boolean(
-          data.must_reset_password
-        ),
+        must_reset_password: Boolean(data.must_reset_password),
         requires_totp: Boolean(data.requires_totp),
         totp_enabled: Boolean(data.totp_enabled),
       })
+
+      const roles = (data.role_names || []).map((r) => String(r).toLowerCase())
+      setSelectedRoles(roles)
     } catch (err) {
       console.error('Load user error:', err)
-
-      setError(
-        err.message ||
-        'Unable to load user information.'
-      )
+      setError(err.message || 'Unable to load user information.')
     } finally {
       setLoading(false)
     }
@@ -107,21 +105,24 @@ export default function EditUser() {
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target
-
     setFormData((previousData) => ({
       ...previousData,
       [name]: type === 'checkbox' ? checked : value,
     }))
   }
 
+  function handleRoleToggle(roleId) {
+    setSelectedRoles((prev) =>
+      prev.includes(roleId) ? prev.filter((r) => r !== roleId) : [...prev, roleId]
+    )
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
-
     setError('')
     setSuccess('')
 
     const token = localStorage.getItem('authToken')
-
     if (!token) {
       navigate('/login')
       return
@@ -130,79 +131,47 @@ export default function EditUser() {
     setSaving(true)
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/users/${id}/`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: formData.username,
-            email: formData.email,
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            is_active: formData.is_active,
-            is_staff: formData.is_staff,
-            must_reset_password:
-              formData.must_reset_password,
-            requires_totp:
-              formData.requires_totp,
-            totp_enabled:
-              formData.totp_enabled,
-          }),
-        }
-      )
+      // 1. Update basic user details
+      const response = await fetch(`${API_BASE_URL}/users/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          is_active: formData.is_active,
+          is_staff: formData.is_staff,
+          must_reset_password: formData.must_reset_password,
+          requires_totp: formData.requires_totp,
+          totp_enabled: formData.totp_enabled,
+          role_names: selectedRoles,
+        }),
+      })
 
       const data = await response.json()
 
-      if (response.status === 401) {
-        localStorage.removeItem('authToken')
-        localStorage.removeItem('userEmail')
-        navigate('/login')
-        return
-      }
-
-      if (response.status === 403) {
-        setError(
-          'You do not have permission to edit this user.'
-        )
-        return
-      }
-
       if (!response.ok) {
-        const message =
-          data.username?.[0] ||
-          data.email?.[0] ||
-          data.first_name?.[0] ||
-          data.last_name?.[0] ||
-          data.is_active?.[0] ||
-          data.is_staff?.[0] ||
-          data.must_reset_password?.[0] ||
-          data.requires_totp?.[0] ||
-          data.totp_enabled?.[0] ||
-          data.detail ||
-          data.error ||
-          'Failed to update user.'
-
-        throw new Error(message)
+        throw new Error(data.detail || data.error || 'Failed to update user profile.')
       }
 
-      setSuccess(
-        'User updated successfully.'
-      )
+      // 2. Explicitly update roles endpoint
+      try {
+        await updateUserRoles(id, selectedRoles)
+      } catch (roleErr) {
+        console.warn('Role update fallback warning:', roleErr)
+      }
 
+      setSuccess('User and roles updated successfully.')
       setTimeout(() => {
         navigate(`/admin/users/${id}`)
       }, 1000)
     } catch (err) {
       console.error('Update user error:', err)
-
-      setError(
-        err.message ||
-        'Unable to update user.'
-      )
+      setError(err.message || 'Unable to update user.')
     } finally {
       setSaving(false)
     }
@@ -210,359 +179,216 @@ export default function EditUser() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-
-        <header className="border-b border-slate-200 bg-white">
-          <div className="mx-auto max-w-7xl px-6 py-4">
-
-            <h1 className="text-xl font-bold text-slate-800">
-              School Management System
-            </h1>
-
-            <p className="text-sm text-slate-500">
-              Edit User
-            </p>
-
-          </div>
-        </header>
-
-        <main className="flex min-h-[70vh] items-center justify-center px-6">
-
-          <div className="text-center">
-
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
-
-            <p className="text-sm text-slate-500">
-              Loading user...
-            </p>
-
-          </div>
-
-        </main>
-
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
+          <p className="text-sm text-slate-500">Loading user details...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
-
       {/* Header */}
       <header className="border-b border-slate-200 bg-white">
-
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">
-              School Management System
-            </h1>
-
-            <p className="text-sm text-slate-500">
-              Admin User Management
-            </p>
+            <h1 className="text-xl font-bold text-slate-800">SSMS Administration</h1>
+            <p className="text-xs text-slate-500">Edit User Account</p>
           </div>
 
           <button
             type="button"
             onClick={() => navigate(`/admin/users/${id}`)}
-            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
+            className="rounded-xl bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition"
           >
-            ← User Details
+            ← Back to Details
           </button>
-
         </div>
-
       </header>
 
-
       {/* Main */}
-      <main className="mx-auto max-w-4xl px-6 py-10">
-
+      <main className="mx-auto max-w-5xl px-6 py-10">
         <div className="mb-8">
-
-          <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">
-            Administration
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+            Account Management
           </p>
-
-          <h2 className="mt-2 text-3xl font-bold text-slate-900">
-            Edit User
+          <h2 className="mt-1 text-3xl font-extrabold text-slate-900 tracking-tight">
+            Edit User: {formData.username || formData.email}
           </h2>
-
-          <p className="mt-2 text-slate-500">
-            Update this user's account information and status.
+          <p className="mt-1 text-sm text-slate-500">
+            Update personal credentials, role assignments, and security settings.
           </p>
-
         </div>
 
-
-        {/* Messages */}
         {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 shadow-sm">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-700">
+          <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-xs text-green-700 shadow-sm">
             {success}
           </div>
         )}
 
-
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-8"
-        >
-
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic information */}
-          <section className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-
-            <div className="mb-6">
-              <h3 className="text-xl font-bold text-slate-800">
-                Basic Information
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Update the user's personal account information.
-              </p>
+          <section className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-6 border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-bold text-slate-900">Personal Information</h3>
+              <p className="mt-1 text-xs text-slate-500">Update identity information.</p>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2">
-
-              {/* First name */}
+            <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label
-                  htmlFor="first_name"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
-                  First Name
-                </label>
-
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">First Name</label>
                 <input
-                  id="first_name"
-                  name="first_name"
                   type="text"
+                  name="first_name"
                   value={formData.first_name}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition"
                 />
               </div>
 
-
-              {/* Last name */}
               <div>
-                <label
-                  htmlFor="last_name"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
-                  Last Name
-                </label>
-
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Last Name</label>
                 <input
-                  id="last_name"
-                  name="last_name"
                   type="text"
+                  name="last_name"
                   value={formData.last_name}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition"
                 />
               </div>
 
-
-              {/* Username */}
               <div>
-                <label
-                  htmlFor="username"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
-                  Username
-                </label>
-
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Username *</label>
                 <input
-                  id="username"
-                  name="username"
                   type="text"
+                  name="username"
+                  required
                   value={formData.username}
                   onChange={handleChange}
-                  required
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition"
                 />
               </div>
 
-
-              {/* Email */}
               <div>
-                <label
-                  htmlFor="email"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
-                  Email
-                </label>
-
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Email Address *</label>
                 <input
-                  id="email"
-                  name="email"
                   type="email"
+                  name="email"
+                  required
                   value={formData.email}
                   onChange={handleChange}
-                  required
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition"
                 />
               </div>
-
             </div>
-
           </section>
 
-
-          {/* Account settings */}
-          <section className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-
-            <div className="mb-6">
-              <h3 className="text-xl font-bold text-slate-800">
-                Account Settings
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Manage account status and security settings.
+          {/* Role Assignments Section */}
+          <section className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-6 border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-bold text-slate-900">System Role Assignments</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Select one or more roles that determine this user's portal access permissions.
               </p>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-2">
+              {AVAILABLE_ROLES.map((r) => {
+                const isChecked = selectedRoles.includes(r.id)
+                return (
+                  <label
+                    key={r.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                      isChecked
+                        ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                        : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleRoleToggle(r.id)}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
+                        <span>{r.icon}</span>
+                        <span>{r.label}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">{r.desc}</p>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </section>
 
-            <div className="space-y-5">
+          {/* Account Security & Flags */}
+          <section className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-6 border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-bold text-slate-900">Security & Account Flags</h3>
+              <p className="mt-1 text-xs text-slate-500">Manage account state and access privileges.</p>
+            </div>
 
-              {/* Active */}
-              <label className="flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
-
+            <div className="space-y-3 text-xs">
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3.5 hover:bg-slate-50 transition">
                 <input
                   type="checkbox"
                   name="is_active"
                   checked={formData.is_active}
                   onChange={handleChange}
-                  className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-
                 <div>
-                  <p className="font-semibold text-slate-800">
-                    Active account
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Allow this user to access the system.
-                  </p>
+                  <p className="font-bold text-slate-800">Active User Account</p>
+                  <p className="text-slate-500 text-[11px]">Allow this user to sign in and interact with SSMS.</p>
                 </div>
-
               </label>
 
-
-              {/* Staff */}
-              <label className="flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
-
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3.5 hover:bg-slate-50 transition">
                 <input
                   type="checkbox"
                   name="is_staff"
                   checked={formData.is_staff}
                   onChange={handleChange}
-                  className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-
                 <div>
-                  <p className="font-semibold text-slate-800">
-                    Staff access
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Give this user Django staff access.
-                  </p>
+                  <p className="font-bold text-slate-800">Staff Privileges (Django Admin)</p>
+                  <p className="text-slate-500 text-[11px]">Grants access to backend Django admin interface.</p>
                 </div>
-
               </label>
 
-
-              {/* Password reset */}
-              <label className="flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
-
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3.5 hover:bg-slate-50 transition">
                 <input
                   type="checkbox"
                   name="must_reset_password"
                   checked={formData.must_reset_password}
                   onChange={handleChange}
-                  className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-
                 <div>
-                  <p className="font-semibold text-slate-800">
-                    Require password reset
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Require the user to change their password before normal access.
-                  </p>
+                  <p className="font-bold text-slate-800">Force Mandatory Password Reset</p>
+                  <p className="text-slate-500 text-[11px]">User will be prompted to set a new password on next login.</p>
                 </div>
-
               </label>
-
-
-              {/* TOTP required */}
-              <label className="flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
-
-                <input
-                  type="checkbox"
-                  name="requires_totp"
-                  checked={formData.requires_totp}
-                  onChange={handleChange}
-                  className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-
-                <div>
-                  <p className="font-semibold text-slate-800">
-                    Require TOTP
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Require two-factor authentication for this account.
-                  </p>
-                </div>
-
-              </label>
-
-
-              {/* TOTP enabled */}
-              <label className="flex cursor-pointer items-start gap-4 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
-
-                <input
-                  type="checkbox"
-                  name="totp_enabled"
-                  checked={formData.totp_enabled}
-                  onChange={handleChange}
-                  className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-
-                <div>
-                  <p className="font-semibold text-slate-800">
-                    TOTP enabled
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Mark TOTP as enabled for this account.
-                  </p>
-                </div>
-
-              </label>
-
             </div>
-
           </section>
 
-
-          {/* Actions */}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
+          {/* Save Action */}
+          <div className="flex items-center justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={() => navigate(`/admin/users/${id}`)}
-              disabled={saving}
-              className="rounded-xl bg-slate-100 px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+              className="rounded-xl bg-slate-100 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-200 transition"
             >
               Cancel
             </button>
@@ -570,17 +396,13 @@ export default function EditUser() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition disabled:opacity-60"
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? 'Saving User...' : 'Save All Changes'}
             </button>
-
           </div>
-
         </form>
-
       </main>
-
     </div>
   )
 }

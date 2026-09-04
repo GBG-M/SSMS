@@ -57,6 +57,20 @@ export default function Dashboard() {
       }
 
       setProfile(data)
+
+      // Fetch student stats if accessible
+      try {
+        const statsRes = await fetch('/api/students/students/statistics/', {
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        if (statsRes.ok) {
+          const statsData = await statsRes.json()
+          setStudentStats(statsData)
+        }
+      } catch {}
     } catch (error) {
       console.error(
         'Profile request failed:',
@@ -66,6 +80,8 @@ export default function Dashboard() {
       setLoadingProfile(false)
     }
   }
+
+  const [studentStats, setStudentStats] = useState(null)
 
   const displayName =
     profile?.full_name ||
@@ -114,19 +130,23 @@ export default function Dashboard() {
         {/* Navigation */}
         <nav className="space-y-1 px-4 py-6">
 
-          <a
-            href="#"
-            className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium"
+          <Link
+            to="/dashboard"
+            className="flex items-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white"
           >
             <span className="mr-3">
               🏠
             </span>
 
             Dashboard
-          </a>
+          </Link>
 
           <Link
+<<<<<<< HEAD
             to="/student"
+=======
+            to="/student/dashboard"
+>>>>>>> b7d5dd994c4d8fb1ea86bc785efb6877619490f6
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
@@ -178,6 +198,17 @@ export default function Dashboard() {
             </span>
 
             Notifications
+          </Link>
+
+          <Link
+            to="/users"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              ⚙️
+            </span>
+
+            Administration
           </Link>
 
         </nav>
@@ -261,29 +292,22 @@ export default function Dashboard() {
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-
               <div className="flex items-center justify-between">
-
                 <div>
                   <p className="text-sm text-slate-500">
-                    Students
+                    Total Students
                   </p>
-
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    --
+                    {studentStats ? studentStats.total_students : '--'}
                   </p>
                 </div>
-
                 <div className="rounded-xl bg-blue-100 p-3 text-2xl">
                   👨‍🎓
                 </div>
-
               </div>
-
-              <p className="mt-4 text-xs text-slate-400">
-                Data will connect later
+              <p className="mt-4 text-xs text-slate-500">
+                {studentStats ? `${studentStats.active_students || 0} active students` : 'Live enrollment summary'}
               </p>
-
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -375,110 +399,101 @@ export default function Dashboard() {
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 1. Student Management */}
+              <Link
+                to="/student/dashboard"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   👨‍🎓
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Student Management
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Student Management →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage student profiles, admissions,
-                  and documentation.
+                  Manage student profiles, admissions, attendance, and academic records.
                 </p>
+              </Link>
 
-              </div>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 2. Academic Management */}
+              <Link
+                to="/academics"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   📚
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Academic Management
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Academic Management →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage classes, subjects, grades,
-                  and academic results.
+                  Manage curriculum, subjects, class sections, and the official gradebook.
                 </p>
+              </Link>
 
-              </div>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 3. Finance */}
+              <Link
+                to="/finance/dashboard"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   💰
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Finance
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Finance & Billing →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage school fees, billing,
-                  and payment records.
+                  Manage school fee structures, student invoices, and ledger balances.
                 </p>
+              </Link>
 
-              </div>
-
+              {/* 4. Notifications */}
               <Link
                 to="/notifications"
-                className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
               >
-
                 <div className="mb-4 text-3xl">
                   🔔
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Notifications
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Notifications →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage school announcements and
-                  important notifications.
+                  View and manage school-wide announcements and alert dispatches.
                 </p>
-
               </Link>
 
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 5. Scheduling */}
+              <Link
+                to="/scheduling"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   📅
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Scheduling
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Scheduling & Timetables →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage timetables, attendance,
-                  and scheduling.
+                  Manage weekly class timetables, examination sessions, and room bookings.
                 </p>
+              </Link>
 
-              </div>
-
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md">
-
+              {/* 6. Administration */}
+              <Link
+                to="/users"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-blue-500"
+              >
                 <div className="mb-4 text-3xl">
                   ⚙️
                 </div>
-
-                <h3 className="font-bold text-slate-900">
-                  Administration
+                <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition">
+                  Administration & Users →
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Manage users, roles, permissions,
-                  and system settings.
+                  Manage user accounts, system roles, staff permissions, and security.
                 </p>
-
-              </div>
+              </Link>
 
             </div>
 

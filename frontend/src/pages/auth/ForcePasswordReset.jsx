@@ -58,12 +58,9 @@ function ForcePasswordReset() {
           },
 
           body: JSON.stringify({
-            // IMPORTANT:
-            // Backend expects pre_auth_user_id
             pre_auth_user_id: preAuthUserId,
-
-            // Backend expects new_password
             new_password: password,
+            confirm_password: confirmPassword,
           }),
         }
       )

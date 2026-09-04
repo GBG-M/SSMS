@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Home & Auth
 import Home from "./pages/home/Home";
@@ -8,7 +8,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ForcePasswordReset from "./pages/auth/ForcePasswordReset";
 import ChangePassword from "./pages/auth/ChangePassword";
 
-// Accounts
+// Accounts & Admin
 import Profile from "./pages/Profile/Profile";
 import Users from "./pages/admin/Users";
 import UserDetails from "./pages/admin/UserDetails";
@@ -17,18 +17,18 @@ import EditUser from "./pages/admin/EditUser";
 // Dashboard
 import Dashboard from "./pages/dashboard/Dashboard";
 
-// Routes
+// Protected Route wrappers
 import ProtectedRoute from "./routes/ProtectedRoute";
 import StudentRoute from "./routes/StudentRoute";
 
-// Student
+// Student Portal
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentProfile from "./pages/student/StudentProfile";
 import AcademicRecords from "./pages/student/AcademicRecords";
 import Attendance from "./pages/student/Attendance";
 import Documents from "./pages/student/Documents";
 
-// Academics
+// Academics Portal
 import AcademicsOverview from "./pages/academics/AcademicsOverview";
 import AcademicYears from "./pages/academics/AcademicYears";
 import Assessments from "./pages/academics/Assessments";
@@ -38,7 +38,7 @@ import Enrollments from "./pages/academics/Enrollments";
 import GradeBook from "./pages/academics/GradeBook";
 import Subjects from "./pages/academics/Subjects";
 
-// Scheduling
+// Scheduling Portal
 import SchedulingOverview from "./pages/scheduling/SchedulingOverview";
 import ClassSchedules from "./pages/scheduling/ClassSchedules";
 import ExamSchedules from "./pages/scheduling/ExamSchedules";
@@ -47,7 +47,7 @@ import Rooms from "./pages/scheduling/Rooms";
 // Notifications
 import Notifications from "./features/notifications/Notifications";
 
-// Finance
+// Finance Portal
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
 import StudentFees from "./pages/finance/StudentFees";
 import Invoices from "./pages/finance/Invoices";
@@ -58,17 +58,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public routes */}
+        {/* ================= PUBLIC ROUTES ================= */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route
-          path="/force-password-reset"
-          element={<ForcePasswordReset />}
-        />
+        <Route path="/force-password-reset" element={<ForcePasswordReset />} />
 
-        {/* General protected routes */}
+        {/* ================= GENERAL PROTECTED ================= */}
         <Route
           path="/dashboard"
           element={
@@ -77,7 +74,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/profile"
           element={
@@ -86,7 +82,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/change-password"
           element={
@@ -96,7 +91,7 @@ function App() {
           }
         />
 
-        {/* Admin / Users */}
+        {/* ================= ADMIN / USER MANAGEMENT ================= */}
         <Route
           path="/users"
           element={
@@ -105,7 +100,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <Users />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/users/:id"
           element={
@@ -114,7 +116,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/admin/users/:id"
+          element={
+            <ProtectedRoute>
+              <UserDetails />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/users/:id/edit"
           element={
@@ -123,8 +132,16 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/users/:id/edit"
+          element={
+            <ProtectedRoute>
+              <EditUser />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* Notifications */}
+        {/* ================= NOTIFICATIONS ================= */}
         <Route
           path="/notifications"
           element={
@@ -134,7 +151,7 @@ function App() {
           }
         />
 
-        {/* Student routes */}
+        {/* ================= STUDENT PORTAL ================= */}
         <Route
           path="/student"
           element={
@@ -143,7 +160,14 @@ function App() {
             </StudentRoute>
           }
         />
-
+        <Route
+          path="/student/dashboard"
+          element={
+            <StudentRoute>
+              <StudentDashboard />
+            </StudentRoute>
+          }
+        />
         <Route
           path="/student/profile"
           element={
@@ -152,7 +176,6 @@ function App() {
             </StudentRoute>
           }
         />
-
         <Route
           path="/student/academic-records"
           element={
@@ -161,7 +184,14 @@ function App() {
             </StudentRoute>
           }
         />
-
+        <Route
+          path="/student/academics"
+          element={
+            <StudentRoute>
+              <AcademicRecords />
+            </StudentRoute>
+          }
+        />
         <Route
           path="/student/attendance"
           element={
@@ -170,7 +200,6 @@ function App() {
             </StudentRoute>
           }
         />
-
         <Route
           path="/student/documents"
           element={
@@ -180,7 +209,7 @@ function App() {
           }
         />
 
-        {/* Academics */}
+        {/* ================= ACADEMICS ================= */}
         <Route
           path="/academics"
           element={
@@ -189,7 +218,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/academics/years"
           element={
@@ -198,7 +226,62 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/academics/subjects"
+          element={
+            <ProtectedRoute>
+              <Subjects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/academics/courses"
+          element={
+            <ProtectedRoute>
+              <Courses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/academics/sections"
+          element={
+            <ProtectedRoute>
+              <ClassSections />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/academics/class-sections"
+          element={
+            <ProtectedRoute>
+              <ClassSections />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/academics/enrollments"
+          element={
+            <ProtectedRoute>
+              <Enrollments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/academics/grades"
+          element={
+            <ProtectedRoute>
+              <GradeBook />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/academics/grade-book"
+          element={
+            <ProtectedRoute>
+              <GradeBook />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/academics/assessments"
           element={
@@ -208,52 +291,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/academics/class-sections"
-          element={
-            <ProtectedRoute>
-              <ClassSections />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/academics/courses"
-          element={
-            <ProtectedRoute>
-              <Courses />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/academics/enrollments"
-          element={
-            <ProtectedRoute>
-              <Enrollments />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/academics/grade-book"
-          element={
-            <ProtectedRoute>
-              <GradeBook />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/academics/subjects"
-          element={
-            <ProtectedRoute>
-              <Subjects />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Scheduling */}
+        {/* ================= SCHEDULING ================= */}
         <Route
           path="/scheduling"
           element={
@@ -262,7 +300,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/scheduling/classes"
+          element={
+            <ProtectedRoute>
+              <ClassSchedules />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/scheduling/class-schedules"
           element={
@@ -271,7 +316,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/scheduling/exams"
+          element={
+            <ProtectedRoute>
+              <ExamSchedules />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/scheduling/exam-schedules"
           element={
@@ -280,7 +332,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/scheduling/rooms"
           element={
@@ -290,7 +341,15 @@ function App() {
           }
         />
 
-        {/* Finance */}
+        {/* ================= FINANCE ================= */}
+        <Route
+          path="/finance"
+          element={
+            <ProtectedRoute>
+              <FinanceDashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/finance/dashboard"
           element={
@@ -299,7 +358,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/finance/student-fees"
           element={
@@ -308,7 +366,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/finance/invoices"
           element={
@@ -317,7 +374,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/finance/fee-types"
           element={
@@ -326,7 +382,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/finance/payments"
           element={
@@ -335,6 +390,9 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Catch-all fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -2,8 +2,10 @@ const API_BASE_URL = '/api/accounts'
 
 export function clearAuthSession() {
   localStorage.removeItem('authToken')
+  localStorage.removeItem('authType')
   localStorage.removeItem('userEmail')
   localStorage.removeItem('userProfile')
+  localStorage.removeItem('preAuthUserId')
 }
 
 export async function login(email, password) {
@@ -18,7 +20,7 @@ export async function login(email, password) {
     }),
   })
 
-  const data = await response.json()
+  const data = await response.json().catch(() => ({}))
 
   return {
     ok: response.ok,
@@ -88,6 +90,73 @@ export async function getCurrentUserProfile(forceRefresh = false) {
 export function hasSchedulingPermission(user) {
   if (!user) return false
   if (user.is_staff || user.is_superuser) return true
-  const roles = user.role_names || (user.roles ? user.roles.map(r => r.name || r) : [])
+  const roles = (user.role_names || (user.roles ? user.roles.map(r => r.name || r) : [])).map(r => String(r).toLowerCase())
   return roles.includes('admin') || roles.includes('academic_coordinator')
+}
+
+export async function getSystemRoles() {
+  const token = getToken()
+  if (!token) return []
+  try {
+    const res = await fetch(`${API_BASE_URL}/roles/`, {
+      headers: {
+        Authorization: `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data : data.results || []
+  } catch {
+    return []
+  }
+}
+
+export async function updateUserRoles(userId, roleNames) {
+  const token = getToken()
+  const res = await fetch(`${API_BASE_URL}/users/${userId}/roles/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ role_names: roleNames }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || data.detail || 'Failed to update roles.')
+  }
+  return data
+}
+
+export async function adminForceUserPasswordReset(userId) {
+  const token = getToken()
+  const res = await fetch(`${API_BASE_URL}/users/${userId}/force-reset/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || data.detail || 'Failed to trigger password reset.')
+  }
+  return data
+}
+
+export async function getUserLoginHistory(userId = null) {
+  const token = getToken()
+  const url = userId
+    ? `${API_BASE_URL}/users/${userId}/login-history/`
+    : `${API_BASE_URL}/login-history/`
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+  if (!res.ok) return []
+  const data = await res.json().catch(() => [])
+  return Array.isArray(data) ? data : []
 }

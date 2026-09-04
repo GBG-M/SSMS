@@ -148,9 +148,9 @@ if (!profileResponse.ok) {
 }
 
 // Redirect based on role
-const roles = profile.role_names || []
+const roles = (profile.role_names || []).map((r) => String(r).toLowerCase())
 
-if (roles.includes('STUDENT')) {
+if (roles.includes('student')) {
   navigate('/student/dashboard')
 } else {
   navigate('/dashboard')
