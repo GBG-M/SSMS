@@ -1,33 +1,59 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 from accounts.models import Role
 
 
 class SchedulingAccessPermission(BasePermission):
-    """Restrict schedule access to academic staff and owners."""
+    """Restrict schedule access to academic staff and owners with strict method-level enforcement."""
 
-    message = 'You do not have permission to access scheduling records.'
+    message = 'You do not have permission to access or modify scheduling records.'
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
 
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+
         role_names = {role.name for role in request.user.roles.all()}
-        return bool(role_names.intersection({
-            Role.ADMIN,
-            Role.ACADEMIC_COORDINATOR,
-            Role.TEACHER,
-            Role.STUDENT,
-            Role.PARENT,
-        }))
+
+        # Read-only operations allowed for all active school community roles
+        if request.method in SAFE_METHODS:
+            return bool(role_names.intersection({
+                Role.ADMIN,
+                Role.ACADEMIC_COORDINATOR,
+                Role.TEACHER,
+                Role.STUDENT,
+                Role.PARENT,
+            }))
+
+        # Write operations (POST, PUT, PATCH, DELETE) require administrative/coordinator authority
+        return bool(role_names.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
 
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:
             return False
 
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+
         role_names = {role.name for role in request.user.roles.all()}
         if Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return True
+
+        # Non-staff roles cannot modify schedules
+        if request.method not in SAFE_METHODS:
+            return False
+
+        # Room models can be read by all authenticated roles
+        if obj.__class__.__name__ == 'Room':
+            return bool(role_names.intersection({
+                Role.ADMIN,
+                Role.ACADEMIC_COORDINATOR,
+                Role.TEACHER,
+                Role.STUDENT,
+                Role.PARENT,
+            }))
 
         if Role.TEACHER in role_names:
             if hasattr(obj, 'teacher') and obj.teacher_id == request.user.id:
