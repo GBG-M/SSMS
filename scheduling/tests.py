@@ -8,6 +8,7 @@ from academics.models import AcademicYear, Subject, ClassSection, Enrollment
 from accounts.models import Role
 from students.models import Student
 from .models import Room, ClassSchedule, ExamSchedule
+from .permissions import SchedulingAccessPermission
 
 User = get_user_model()
 
@@ -166,3 +167,67 @@ class SchedulingValidationTests(TestCase):
 
         with self.assertRaises(ValidationError):
             conflicting_exam.full_clean()
+
+
+class SchedulingPermissionTests(TestCase):
+    def setUp(self):
+        self.admin_role = Role.objects.create(name=Role.ADMIN)
+        self.coordinator_role = Role.objects.create(name=Role.ACADEMIC_COORDINATOR)
+        self.teacher_role = Role.objects.create(name=Role.TEACHER)
+        self.student_role = Role.objects.create(name=Role.STUDENT)
+        self.parent_role = Role.objects.create(name=Role.PARENT)
+
+        self.admin = User.objects.create_user(
+            email='admin@ssms.test', username='admin_user', password='StrongPass123'
+        )
+        self.admin.roles.add(self.admin_role)
+
+        self.coordinator = User.objects.create_user(
+            email='coord@ssms.test', username='coord_user', password='StrongPass123'
+        )
+        self.coordinator.roles.add(self.coordinator_role)
+
+        self.student = User.objects.create_user(
+            email='student@ssms.test', username='student_user', password='StrongPass123'
+        )
+        self.student.roles.add(self.student_role)
+
+        self.parent = User.objects.create_user(
+            email='parent@ssms.test', username='parent_user', password='StrongPass123'
+        )
+        self.parent.roles.add(self.parent_role)
+
+        self.teacher = User.objects.create_user(
+            email='teacher@ssms.test', username='teacher_user', password='StrongPass123'
+        )
+        self.teacher.roles.add(self.teacher_role)
+
+        self.permission = SchedulingAccessPermission()
+
+    def test_admin_can_create_schedule(self):
+        request = type('Request', (), {'user': self.admin, 'method': 'POST'})()
+        self.assertTrue(self.permission.has_permission(request, None))
+
+    def test_coordinator_can_create_schedule(self):
+        request = type('Request', (), {'user': self.coordinator, 'method': 'POST'})()
+        self.assertTrue(self.permission.has_permission(request, None))
+
+    def test_student_cannot_create_schedule(self):
+        request = type('Request', (), {'user': self.student, 'method': 'POST'})()
+        self.assertFalse(self.permission.has_permission(request, None))
+
+    def test_parent_cannot_create_schedule(self):
+        request = type('Request', (), {'user': self.parent, 'method': 'POST'})()
+        self.assertFalse(self.permission.has_permission(request, None))
+
+    def test_teacher_cannot_create_schedule(self):
+        request = type('Request', (), {'user': self.teacher, 'method': 'POST'})()
+        self.assertFalse(self.permission.has_permission(request, None))
+
+    def test_student_can_read_schedule(self):
+        request = type('Request', (), {'user': self.student, 'method': 'GET'})()
+        self.assertTrue(self.permission.has_permission(request, None))
+
+    def test_parent_can_read_schedule(self):
+        request = type('Request', (), {'user': self.parent, 'method': 'GET'})()
+        self.assertTrue(self.permission.has_permission(request, None))

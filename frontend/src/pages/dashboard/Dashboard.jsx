@@ -58,7 +58,7 @@ export default function Dashboard() {
 
       setProfile(data)
 
-      // Fetch student stats if accessible
+      // Fetch live dashboard statistics across modules
       try {
         const statsRes = await fetch('/api/students/students/statistics/', {
           headers: {
@@ -69,6 +69,70 @@ export default function Dashboard() {
         if (statsRes.ok) {
           const statsData = await statsRes.json()
           setStudentStats(statsData)
+        }
+      } catch {}
+
+      try {
+        const sectionsRes = await fetch('/api/academics/class-sections/', {
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        if (sectionsRes.ok) {
+          const sectionsData = await sectionsRes.json()
+          const sectionsList = Array.isArray(sectionsData) ? sectionsData : (sectionsData.results || [])
+          setClassesCount(sectionsList.length)
+          const assignedTeachers = new Set(sectionsList.map(s => s.teacher).filter(Boolean))
+          if (assignedTeachers.size > 0) {
+            setTeacherCount(assignedTeachers.size)
+          }
+        }
+      } catch {}
+
+      try {
+        const usersRes = await fetch('/api/accounts/users/', {
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        if (usersRes.ok) {
+          const usersData = await usersRes.json()
+          const usersList = Array.isArray(usersData) ? usersData : (usersData.users || usersData.results || [])
+          const teachers = usersList.filter(u =>
+            (u.role_names && u.role_names.some(r => r.toLowerCase() === 'teacher')) ||
+            (u.roles && u.roles.some(r => (r.name || r).toLowerCase() === 'teacher'))
+          )
+          if (teachers.length > 0) {
+            setTeacherCount(teachers.length)
+          }
+        }
+      } catch {}
+
+      try {
+        const attRes = await fetch('/api/students/attendance/', {
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        if (attRes.ok) {
+          const attData = await attRes.json()
+          const attList = Array.isArray(attData) ? attData : (attData.results || [])
+          if (attList.length > 0) {
+            const present = attList.filter(a => a.status === 'PRESENT').length
+            const rate = Math.round((present / attList.length) * 100)
+            setAttendanceStats({
+              rate: `${rate}%`,
+              label: `${attList.length} logs recorded`,
+            })
+          } else {
+            setAttendanceStats({
+              rate: '100%',
+              label: 'No absences recorded',
+            })
+          }
         }
       } catch {}
     } catch (error) {
@@ -82,6 +146,9 @@ export default function Dashboard() {
   }
 
   const [studentStats, setStudentStats] = useState(null)
+  const [teacherCount, setTeacherCount] = useState(null)
+  const [classesCount, setClassesCount] = useState(null)
+  const [attendanceStats, setAttendanceStats] = useState(null)
 
   const displayName =
     profile?.full_name ||
@@ -311,81 +378,60 @@ export default function Dashboard() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-
               <div className="flex items-center justify-between">
-
                 <div>
                   <p className="text-sm text-slate-500">
                     Teachers
                   </p>
-
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    --
+                    {teacherCount !== null ? teacherCount : (loadingProfile ? '...' : '0')}
                   </p>
                 </div>
-
                 <div className="rounded-xl bg-green-100 p-3 text-2xl">
                   👨‍🏫
                 </div>
-
               </div>
-
-              <p className="mt-4 text-xs text-slate-400">
-                Data will connect later
+              <p className="mt-4 text-xs text-slate-500">
+                {teacherCount !== null && teacherCount > 0 ? `${teacherCount} active teaching staff` : 'Active teaching faculty'}
               </p>
-
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-
               <div className="flex items-center justify-between">
-
                 <div>
                   <p className="text-sm text-slate-500">
                     Classes
                   </p>
-
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    --
+                    {classesCount !== null ? classesCount : (loadingProfile ? '...' : '0')}
                   </p>
                 </div>
-
                 <div className="rounded-xl bg-purple-100 p-3 text-2xl">
                   📚
                 </div>
-
               </div>
-
-              <p className="mt-4 text-xs text-slate-400">
-                Data will connect later
+              <p className="mt-4 text-xs text-slate-500">
+                {classesCount !== null && classesCount > 0 ? `${classesCount} registered class sections` : 'Active class sections'}
               </p>
-
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-
               <div className="flex items-center justify-between">
-
                 <div>
                   <p className="text-sm text-slate-500">
                     Attendance
                   </p>
-
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    --
+                    {attendanceStats ? attendanceStats.rate : (loadingProfile ? '...' : '100%')}
                   </p>
                 </div>
-
                 <div className="rounded-xl bg-orange-100 p-3 text-2xl">
                   📊
                 </div>
-
               </div>
-
-              <p className="mt-4 text-xs text-slate-400">
-                Data will connect later
+              <p className="mt-4 text-xs text-slate-500">
+                {attendanceStats ? attendanceStats.label : 'Recorded attendance rate'}
               </p>
-
             </div>
 
           </div>

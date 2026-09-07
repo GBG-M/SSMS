@@ -216,3 +216,28 @@ class FinancePermissionTests(TestCase):
         permission = FinanceAccessPermission()
         request = type('Request', (), {'user': self.admin, 'method': 'GET'})()
         self.assertTrue(permission.has_object_permission(request, None, self.fee))
+
+    def test_admin_can_mutate_finance_records(self):
+        permission = FinanceAccessPermission()
+        request = type('Request', (), {'user': self.admin, 'method': 'POST'})()
+        self.assertTrue(permission.has_permission(request, None))
+
+    def test_student_cannot_mutate_finance_records(self):
+        permission = FinanceAccessPermission()
+        request = type('Request', (), {'user': self.student_user, 'method': 'POST'})()
+        self.assertFalse(permission.has_permission(request, None))
+
+    def test_parent_cannot_mutate_finance_records(self):
+        permission = FinanceAccessPermission()
+        request = type('Request', (), {'user': self.parent_user, 'method': 'POST'})()
+        self.assertFalse(permission.has_permission(request, None))
+
+    def test_student_cannot_modify_existing_fee_record(self):
+        permission = FinanceAccessPermission()
+        request = type('Request', (), {'user': self.student_user, 'method': 'PATCH'})()
+        self.assertFalse(permission.has_object_permission(request, None, self.fee))
+
+    def test_student_can_read_finance_records(self):
+        permission = FinanceAccessPermission()
+        request = type('Request', (), {'user': self.student_user, 'method': 'GET'})()
+        self.assertTrue(permission.has_permission(request, None))
