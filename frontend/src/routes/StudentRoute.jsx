@@ -44,11 +44,6 @@ export default function StudentRoute({ children }) {
         const profile = await response.json();
         const roles = (profile.role_names || []).map((r) => String(r).toLowerCase());
 
-<<<<<<< HEAD
-        setIsStudent(
-          roles.some((role) => role.toLowerCase() === "student")
-        );
-=======
         const hasAccess =
           roles.includes("student") ||
           roles.includes("admin") ||
@@ -58,7 +53,6 @@ export default function StudentRoute({ children }) {
           Boolean(profile.is_staff || profile.is_superuser);
 
         setIsStudent(hasAccess);
->>>>>>> b7d5dd994c4d8fb1ea86bc785efb6877619490f6
       } catch (error) {
         console.error("Failed to verify student role:", error);
         setIsStudent(false);

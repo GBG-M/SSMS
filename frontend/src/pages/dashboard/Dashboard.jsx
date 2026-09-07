@@ -209,11 +209,7 @@ export default function Dashboard() {
           </Link>
 
           <Link
-<<<<<<< HEAD
-            to="/student"
-=======
             to="/student/dashboard"
->>>>>>> b7d5dd994c4d8fb1ea86bc785efb6877619490f6
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
             <span className="mr-3">
