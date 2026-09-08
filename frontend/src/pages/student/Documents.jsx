@@ -4,6 +4,7 @@ import {
   getDocuments,
   getMyStudentProfile,
   uploadStudentDocument,
+  deleteStudentDocument,
 } from "../../services/studentService";
 
 const DOC_TYPES = [
@@ -31,6 +32,7 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState(null);
 
   // Upload Form State
   const [uploadTitle, setUploadTitle] = useState("");
@@ -62,6 +64,22 @@ export default function Documents() {
       setLoading(false);
     }
   }
+
+  const handleDeleteDoc = async (docId, title) => {
+    if (!window.confirm(`Are you sure you want to remove the document "${title}"?`)) {
+      return;
+    }
+    try {
+      setDeletingDocId(docId);
+      await deleteStudentDocument(docId);
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+      alert(err.message || "Failed to delete document.");
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
 
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
@@ -202,26 +220,36 @@ export default function Documents() {
                       </div>
                     </div>
 
-                    <div className="mt-5">
+                    <div className="mt-5 flex items-center gap-2">
                       {doc.file ? (
                         <a
                           href={doc.file}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-blue-600 shadow-sm transition"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-600 shadow-sm transition"
                         >
                           <span>👁️</span>
-                          <span>View / Download Document</span>
+                          <span>View Document</span>
                         </a>
                       ) : (
                         <button
                           type="button"
                           disabled
-                          className="w-full rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-400 cursor-not-allowed"
+                          className="flex-1 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed"
                         >
-                          File Unavailable
+                          Unavailable
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDoc(doc.id, doc.title)}
+                        disabled={deletingDocId === doc.id}
+                        title="Delete Document"
+                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+                      >
+                        {deletingDocId === doc.id ? "..." : "🗑️"}
+                      </button>
                     </div>
                   </div>
                 );

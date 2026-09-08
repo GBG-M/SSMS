@@ -249,10 +249,15 @@ export default function Users() {
         !studentForm.student_id ||
         !studentForm.first_name ||
         !studentForm.last_name ||
+        !studentForm.email ||
         !studentForm.parent_email ||
         !studentForm.parent_phone
       ) {
-        throw new Error('Please fill in Student ID, names, parent email, and parent phone.')
+        throw new Error('Please fill in Student ID, student names, student email, parent email, and parent phone.')
+      }
+
+      if (studentForm.email.trim().toLowerCase() === studentForm.parent_email.trim().toLowerCase()) {
+        throw new Error('Student email and parent email cannot be identical. Each portal account requires a distinct email address.')
       }
 
       const payload = {
@@ -260,12 +265,12 @@ export default function Users() {
           student_id: studentForm.student_id.trim(),
           first_name: studentForm.first_name.trim(),
           last_name: studentForm.last_name.trim(),
-          email: studentForm.email.trim() || `${studentForm.student_id.toLowerCase()}@student.ssms.edu`,
+          email: studentForm.email.trim().toLowerCase(),
           grade_level: studentForm.grade_level,
           current_grade: studentForm.grade_level.replace(/\D/g, '') || '10',
           program: studentForm.program,
         },
-        parent_email: studentForm.parent_email.trim(),
+        parent_email: studentForm.parent_email.trim().toLowerCase(),
         parent_phone: studentForm.parent_phone.trim(),
         parent_first_name: studentForm.parent_first_name.trim() || 'Parent',
         parent_last_name: studentForm.parent_last_name.trim() || studentForm.last_name.trim(),
@@ -392,11 +397,21 @@ export default function Users() {
       const username = user.username || ''
       const email = user.email || ''
 
+      const childrenMatch = (user.children || []).some((c) =>
+        (c.full_name && c.full_name.toLowerCase().includes(searchValue)) ||
+        (c.student_id && c.student_id.toLowerCase().includes(searchValue))
+      )
+      const studentIdMatch = user.student_profile?.student_id
+        ? user.student_profile.student_id.toLowerCase().includes(searchValue)
+        : false
+
       const matchesSearch =
         !searchValue ||
         username.toLowerCase().includes(searchValue) ||
         email.toLowerCase().includes(searchValue) ||
-        fullName.toLowerCase().includes(searchValue)
+        fullName.toLowerCase().includes(searchValue) ||
+        childrenMatch ||
+        studentIdMatch
 
       const matchesStatus =
         statusFilter === 'all' ||
@@ -755,6 +770,28 @@ export default function Users() {
                                 {formatRole(role)}
                               </span>
                             ))}
+
+                            {/* Linked Children indicator for Parents */}
+                            {user.children && user.children.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700"
+                                title={user.children.map((c) => `${c.full_name} (${c.student_id})`).join(', ')}
+                              >
+                                <span>👨‍👧</span>
+                                <span>{user.children.length} {user.children.length === 1 ? 'Child' : 'Children'}</span>
+                              </span>
+                            )}
+
+                            {/* Student ID badge for Students */}
+                            {user.student_profile?.student_id && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-mono font-bold text-emerald-700"
+                                title={`Grade: ${user.student_profile.current_grade} • Class: ${user.student_profile.current_class}`}
+                              >
+                                <span>🎓</span>
+                                <span>{user.student_profile.student_id}</span>
+                              </span>
+                            )}
 
                           </div>
 
@@ -1351,6 +1388,37 @@ export default function Users() {
                           />
                         </div>
 
+                        <div className="sm:col-span-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-semibold text-slate-700">
+                              Student Email * <span className="text-[11px] text-slate-400 font-normal">(Manual entry)</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const sid = studentForm.student_id.trim().toLowerCase() || 'stu'
+                                setStudentForm({ ...studentForm, email: `${sid}@student.ssms.edu` })
+                              }}
+                              className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 hover:bg-blue-100 transition"
+                              title="Auto-fill with standard institutional email domain"
+                            >
+                              ⚡ Auto-fill @student.ssms.edu
+                            </button>
+                          </div>
+                          <input
+                            type="email"
+                            required
+                            value={studentForm.email}
+                            onChange={(e) =>
+                              setStudentForm({ ...studentForm, email: e.target.value })
+                            }
+                            placeholder="e.g. alex.morgan@gmail.com or student@ssms.edu"
+                            className="w-full rounded-xl border border-slate-300 p-2.5 text-xs outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
                             First Name *

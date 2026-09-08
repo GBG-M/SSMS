@@ -70,6 +70,7 @@ class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     role_names = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
+    student_profile = serializers.SerializerMethodField()
     taught_classes_summary = serializers.SerializerMethodField()
     username = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -86,6 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
             'full_name',
             'role_names',
             'children',
+            'student_profile',
             'taught_classes_summary',
             'roles',
             'password',
@@ -137,6 +139,45 @@ class UserSerializer(serializers.ModelSerializer):
                 for student in students
             ]
         return []
+
+    def get_student_profile(self, obj):
+        """Returns student enrollment and linked guardian records if user is a student."""
+        if hasattr(obj, 'student_profile') and obj.student_profile is not None:
+            sp = obj.student_profile
+            linked_parents = [
+                {
+                    'id': str(p.id),
+                    'user_id': str(p.user.id),
+                    'full_name': p.user.full_name,
+                    'email': p.user.email,
+                    'phone_number': p.phone_number,
+                    'relationship': p.relationship,
+                    'is_primary': p.is_primary,
+                }
+                for p in sp.parents.select_related('user').all()
+            ] if hasattr(sp, 'parents') else []
+
+            return {
+                'id': str(sp.id),
+                'student_id': sp.student_id,
+                'first_name': sp.first_name,
+                'last_name': sp.last_name,
+                'full_name': sp.full_name,
+                'current_grade': sp.current_grade,
+                'current_class': sp.current_class,
+                'academic_year': sp.academic_year,
+                'status': sp.status,
+                'gender': sp.gender,
+                'email': sp.email,
+                'phone_number': sp.phone_number,
+                'address': sp.address,
+                'guardian_name': sp.guardian_name,
+                'guardian_phone': sp.guardian_phone,
+                'guardian_email': sp.guardian_email,
+                'guardian_relationship': sp.guardian_relationship,
+                'linked_parents': linked_parents,
+            }
+        return None
 
     def get_taught_classes_summary(self, obj):
         """Returns assigned class sections if user is a teacher."""
@@ -213,6 +254,33 @@ class UserSerializer(serializers.ModelSerializer):
                 instance.roles.add(role_obj)
         if password:
             instance.set_password(password)
+
+        # Support updating linked students for parents
+        student_ids = self.initial_data.get('student_ids') or self.initial_data.get('children_ids')
+        if student_ids is not None and isinstance(student_ids, list):
+            parent_profile, _ = ParentProfile.objects.get_or_create(user=instance)
+            from students.models import Student
+            from django.db.models import Q
+            import uuid
+            
+            pks = []
+            codes = []
+            for s in student_ids:
+                s_str = str(s).strip()
+                if s_str.isdigit():
+                    pks.append(int(s_str))
+                else:
+                    codes.append(s_str)
+                    try:
+                        pks.append(uuid.UUID(s_str))
+                    except (ValueError, AttributeError):
+                        pass
+
+            matched_students = Student.objects.filter(
+                Q(id__in=pks) | Q(student_id__in=codes)
+            )
+            parent_profile.students.set(matched_students)
+
         return super().update(instance, validated_data)
 
 
@@ -302,6 +370,7 @@ class ParentProfileSerializer(serializers.ModelSerializer):
     Serializer for Parent Profile
     """
     user = UserSerializer(read_only=True)
+    children = serializers.SerializerMethodField()
     
     class Meta:
         model = ParentProfile
@@ -311,10 +380,28 @@ class ParentProfileSerializer(serializers.ModelSerializer):
             'phone_number',
             'relationship',
             'is_primary',
+            'children',
             'created_at',
             'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_children(self, obj):
+        return [
+            {
+                'id': str(s.id),
+                'student_id': s.student_id,
+                'first_name': s.first_name,
+                'last_name': s.last_name,
+                'full_name': s.full_name,
+                'current_grade': s.current_grade,
+                'current_class': s.current_class,
+                'academic_year': s.academic_year,
+                'status': s.status,
+                'email': s.email,
+            }
+            for s in obj.students.all()
+        ]
 
 
 class ProvisionStudentSerializer(serializers.Serializer):
@@ -453,3 +540,93 @@ class UserSearchSerializer(serializers.Serializer):
     year = serializers.IntegerField(required=False, min_value=1, max_value=6)
     page = serializers.IntegerField(required=False, min_value=1, default=1)
     per_page = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20)
+
+
+class RegisterSerializer(serializers.Serializer):
+    """
+    Serializer for secure public and applicant registration.
+    Enforces strong password validation, unique email, and RBAC protection.
+    """
+    first_name = serializers.CharField(max_length=150, required=True)
+    last_name = serializers.CharField(max_length=150, required=True)
+    email = serializers.EmailField(required=True)
+    username = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=True)
+    role = serializers.CharField(required=False, default='student')
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError("A user with this email address already exists.")
+        return normalized
+
+    def validate_role(self, value):
+        role_cleaned = str(value).strip().lower()
+        allowed_self_roles = ['student', 'parent', 'teacher']
+        if role_cleaned in ['admin', 'academic_coordinator']:
+            raise serializers.ValidationError(
+                "Administrative and coordinator roles cannot be self-registered. Please contact IT administration."
+            )
+        if role_cleaned not in allowed_self_roles:
+            raise serializers.ValidationError(
+                f"Invalid account type. Allowed types: {', '.join(allowed_self_roles)}"
+            )
+        return role_cleaned
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+
+        if password != confirm_password:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+
+        # Validate password strength using Django's password validators
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            raise serializers.ValidationError({"password": list(e.messages)})
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data.pop('confirm_password')
+        password = validated_data.pop('password')
+        role_name = validated_data.pop('role', 'student').lower()
+        phone_number = validated_data.pop('phone_number', '')
+
+        email = validated_data['email']
+        username = validated_data.get('username')
+        if not username:
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            validated_data['username'] = username
+
+        # Create user
+        user = User.objects.create_user(
+            password=password,
+            must_reset_password=False,
+            **validated_data
+        )
+
+        # Assign role
+        role_obj, _ = Role.objects.get_or_create(name=role_name)
+        user.roles.add(role_obj)
+
+        # Create profile if parent
+        if role_name == 'parent':
+            ParentProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'phone_number': phone_number,
+                    'is_primary': True,
+                    'relationship': 'Parent'
+                }
+            )
+
+        return user

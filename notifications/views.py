@@ -164,6 +164,16 @@ class NotificationViewSet(viewsets.ModelViewSet):
         unread_count = self.get_queryset().filter(recipient=user, is_read=False).count()
         return Response({'unread_count': unread_count})
 
+    @action(detail=False, methods=['post', 'delete'], url_path='clear-read')
+    def clear_read(self, request):
+        """Delete all read notifications for current user."""
+        user = request.user
+        deleted_count, _ = Notification.objects.filter(recipient=user, is_read=True).delete()
+        return Response({
+            'message': f'{deleted_count} read notifications cleared.',
+            'count': deleted_count
+        })
+
     @action(detail=False, methods=['post'], url_path='broadcast-class')
     def broadcast_class(self, request):
         """Broadcast an announcement or alert to all students and parents of a class section."""

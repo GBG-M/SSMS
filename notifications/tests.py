@@ -449,3 +449,35 @@ class NotificationSignalTriggersTests(APITestCase):
         parent_notifs = Notification.objects.filter(recipient=self.parent_user, notification_type='FEE_DUE')
         self.assertGreater(parent_notifs.count(), 0)
         self.assertIn('Science Lab Fee', parent_notifs.first().title)
+
+    def test_delete_own_notification(self):
+        notif = create_notification(
+            recipient=self.student_user,
+            title='Delete Me',
+            message='To be deleted',
+        )
+        self.client.force_authenticate(user=self.student_user)
+        detail_url = reverse('notifications:notification-detail', kwargs={'pk': str(notif.id)})
+        res = self.client.delete(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Notification.objects.filter(id=notif.id).exists())
+
+    def test_clear_read_notifications(self):
+        # Create 2 read and 1 unread notifications for student
+        n1 = create_notification(recipient=self.student_user, title='Read 1', message='msg1')
+        n1.mark_as_read()
+        n2 = create_notification(recipient=self.student_user, title='Read 2', message='msg2')
+        n2.mark_as_read()
+        n3 = create_notification(recipient=self.student_user, title='Unread 1', message='msg3')
+
+        self.client.force_authenticate(user=self.student_user)
+        clear_url = reverse('notifications:notification-clear-read')
+        res = self.client.post(clear_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['count'], 2)
+
+        # Unread notification remains
+        self.assertTrue(Notification.objects.filter(id=n3.id).exists())
+        self.assertFalse(Notification.objects.filter(id=n1.id).exists())
+        self.assertFalse(Notification.objects.filter(id=n2.id).exists())
+

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from datetime import date
 from .models import Student, AcademicRecord, Attendance, StudentDocument
 from accounts.serializers import UserSerializer, generate_secure_temporary_password
 from accounts.models import Role, ParentProfile
@@ -16,6 +17,7 @@ class StudentSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     temporary_password = serializers.SerializerMethodField()
     parent_temporary_password = serializers.SerializerMethodField()
+    linked_parents = serializers.SerializerMethodField()
     
     class Meta:
         model = Student
@@ -30,6 +32,7 @@ class StudentSerializer(serializers.ModelSerializer):
             'academic_year',
             'guardian_name', 'guardian_relationship', 
             'guardian_phone', 'guardian_email',
+            'linked_parents',
             'status', 'is_active',
             'nationality', 'religion', 'medical_conditions', 'allergies',
             'profile_picture',
@@ -42,6 +45,33 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def get_parent_temporary_password(self, obj):
         return getattr(obj, '_parent_temporary_password', None)
+
+    def get_linked_parents(self, obj):
+        if hasattr(obj, 'parents'):
+            return [
+                {
+                    'id': str(p.id),
+                    'user_id': str(p.user.id),
+                    'full_name': p.user.full_name,
+                    'email': p.user.email,
+                    'phone_number': p.phone_number,
+                    'relationship': p.relationship,
+                    'is_primary': p.is_primary,
+                }
+                for p in obj.parents.select_related('user').all()
+            ]
+        return []
+
+    def validate_email(self, value):
+        if not value:
+            return value
+        normalized = value.strip().lower()
+        query = Student.objects.filter(email__iexact=normalized)
+        if self.instance:
+            query = query.exclude(id=self.instance.id)
+        if query.exists():
+            raise serializers.ValidationError("A student with this email address already exists.")
+        return normalized
 
     def create(self, validated_data):
         # Auto-generate student_id if not provided
@@ -143,14 +173,33 @@ class StudentListSerializer(serializers.ModelSerializer):
     
     full_name = serializers.ReadOnlyField()
     age = serializers.ReadOnlyField()
+    linked_parents = serializers.SerializerMethodField()
     
     class Meta:
         model = Student
         fields = [
             'id', 'student_id', 'first_name', 'last_name', 'full_name',
             'gender', 'age', 'email', 'phone_number',
-            'current_grade', 'current_class', 'status', 'profile_picture'
+            'current_grade', 'current_class', 'status', 'profile_picture',
+            'guardian_name', 'guardian_relationship', 'guardian_phone', 'guardian_email',
+            'linked_parents'
         ]
+
+    def get_linked_parents(self, obj):
+        if hasattr(obj, 'parents'):
+            return [
+                {
+                    'id': str(p.id),
+                    'user_id': str(p.user.id),
+                    'full_name': p.user.full_name,
+                    'email': p.user.email,
+                    'phone_number': p.phone_number,
+                    'relationship': p.relationship,
+                    'is_primary': p.is_primary,
+                }
+                for p in obj.parents.select_related('user').all()
+            ]
+        return []
 
 
 class AcademicRecordSerializer(serializers.ModelSerializer):
@@ -177,6 +226,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.full_name', read_only=True)
     student_id = serializers.CharField(source='student.student_id', read_only=True)
     recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
+    date = serializers.DateField(required=False, default=date.today)
     
     class Meta:
         model = Attendance
@@ -186,7 +236,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
             'class_period', 'reason', 'recorded_by', 'recorded_by_name',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'date']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class StudentDocumentSerializer(serializers.ModelSerializer):

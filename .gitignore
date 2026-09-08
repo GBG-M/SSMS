@@ -1,6 +1,7 @@
 # Python virtual environment
 venv/
 .venv/
+venv*/
 
 # Python cache
 __pycache__/
@@ -9,6 +10,9 @@ __pycache__/
 # Django
 *.log
 db.sqlite3
+media/
+student_documents/
+student_profiles/
 
 # Environment variables
 .env

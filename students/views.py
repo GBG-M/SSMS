@@ -2,6 +2,8 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from datetime import datetime, timedelta
@@ -265,8 +267,8 @@ class AcademicRecordViewSet(viewsets.ModelViewSet):
         else:
             return queryset.none()
         
-        # Filter by student
-        student_id = self.request.query_params.get('student_id', None)
+        # Filter by student (accept either student or student_id)
+        student_id = self.request.query_params.get('student_id') or self.request.query_params.get('student')
         if student_id:
             queryset = queryset.filter(student_id=student_id)
         
@@ -285,6 +287,31 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(recorded_by=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        student_id = request.data.get('student')
+        raw_date = request.data.get('date')
+        if raw_date:
+            try:
+                att_date = datetime.strptime(str(raw_date), '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                att_date = datetime.now().date()
+        else:
+            att_date = datetime.now().date()
+
+        # Update if attendance for this student and date already exists
+        existing = Attendance.objects.filter(student_id=student_id, date=att_date).first()
+        if existing:
+            serializer = self.get_serializer(existing, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(recorded_by=request.user, date=att_date)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -309,6 +336,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         else:
             return queryset.none()
         
+        # Filter by student (accept student or student_id)
+        student_id = self.request.query_params.get('student') or self.request.query_params.get('student_id')
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+
         # Filter by date range
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
@@ -335,11 +367,29 @@ class StudentDocumentViewSet(viewsets.ModelViewSet):
     queryset = StudentDocument.objects.all()
     serializer_class = StudentDocumentSerializer
     permission_classes = [IsAuthenticated, StudentAccessPermission]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['student', 'document_type']
     
     def perform_create(self, serializer):
-        serializer.save(uploaded_by=self.request.user)
+        user = self.request.user
+        role_names = {r.name for r in user.roles.all()}
+
+        if Role.STUDENT in role_names and not (user.is_staff or user.is_superuser or Role.ADMIN in role_names):
+            if hasattr(user, 'student_profile'):
+                serializer.save(student=user.student_profile, uploaded_by=user)
+                return
+            else:
+                raise PermissionDenied("Student profile not found.")
+        elif Role.PARENT in role_names and not (user.is_staff or user.is_superuser or Role.ADMIN in role_names):
+            target_student = serializer.validated_data.get('student')
+            if hasattr(user, 'parent_profile') and target_student and target_student in user.parent_profile.students.all():
+                serializer.save(uploaded_by=user)
+                return
+            else:
+                raise PermissionDenied("You can only upload documents for your registered children.")
+
+        serializer.save(uploaded_by=user)
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -363,5 +413,10 @@ class StudentDocumentViewSet(viewsets.ModelViewSet):
                 return queryset.none()
         else:
             return queryset.none()
+
+        # Filter by student (accept student or student_id)
+        student_id = self.request.query_params.get('student') or self.request.query_params.get('student_id')
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
 
         return queryset

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { logout } from '../../services/authService'
+import CommunicationsHub from '../../features/communications/CommunicationsHub'
 
 export default function TeacherDashboard() {
   const navigate = useNavigate()
@@ -337,6 +338,14 @@ export default function TeacherDashboard() {
 
             <div className="flex items-center gap-2">
               <Link
+                to="/notifications"
+                title="Notifications"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition shadow-sm"
+              >
+                <span>🔔</span>
+                <span className="hidden md:inline">Notifications</span>
+              </Link>
+              <Link
                 to="/profile"
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
               >
@@ -494,6 +503,16 @@ export default function TeacherDashboard() {
             }`}
           >
             <span>📅</span> Weekly Timetable
+          </button>
+          <button
+            onClick={() => setActiveTab('communications')}
+            className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-semibold transition whitespace-nowrap ${
+              activeTab === 'communications'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span>💬</span> Parent Inquiries & Notices
           </button>
         </div>
 
@@ -958,6 +977,11 @@ export default function TeacherDashboard() {
               })}
             </div>
           </div>
+        )}
+
+        {/* TAB 6: COMMUNICATIONS & PARENT INQUIRIES */}
+        {activeTab === 'communications' && (
+          <CommunicationsHub userRole="TEACHER" />
         )}
       </main>
 

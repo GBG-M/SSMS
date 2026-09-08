@@ -371,6 +371,173 @@ export default function UserDetails() {
               </div>
             </div>
 
+            {/* Linked Students & Children Section for Parents */}
+            {(roles.includes('parent') || (user?.children && user.children.length > 0)) && (
+              <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">👨‍👩‍👧</span>
+                      <h3 className="text-lg font-bold text-slate-900">Linked Students & Family Records</h3>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Children registered to this parent account for portal monitoring and academic oversight.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-bold text-indigo-700">
+                      {user?.children?.length || 0} {user?.children?.length === 1 ? 'Child Linked' : 'Children Linked'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/users/${id}/edit`)}
+                      className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition"
+                    >
+                      🔗 Link / Unlink
+                    </button>
+                  </div>
+                </div>
+
+                {user?.children && user.children.length > 0 ? (
+                  <div className="grid gap-3.5 sm:grid-cols-2">
+                    {user.children.map((child) => (
+                      <div
+                        key={child.id || child.student_id}
+                        className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/50 p-4 shadow-sm hover:border-indigo-300 transition"
+                      >
+                        <div className="flex items-start gap-3.5">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white font-black text-sm shadow-md shadow-indigo-500/20">
+                            {(child.first_name || 'S').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="text-sm font-bold text-slate-900 truncate">
+                                {child.full_name || `${child.first_name} ${child.last_name}`}
+                              </h4>
+                              <span className="shrink-0 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                {child.status || 'ACTIVE'}
+                              </span>
+                            </div>
+                            <p className="text-xs font-mono font-semibold text-indigo-600 mt-0.5">
+                              {child.student_id}
+                            </p>
+                            <div className="mt-2.5 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                              <span className="rounded-lg bg-slate-100 px-2 py-0.5">
+                                📚 {child.current_grade || 'Grade —'}
+                              </span>
+                              <span className="rounded-lg bg-slate-100 px-2 py-0.5">
+                                🏫 {child.current_class || 'Section —'}
+                              </span>
+                              {child.email && (
+                                <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-mono truncate max-w-[200px]" title={child.email}>
+                                  ✉️ {child.email}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center text-xs text-slate-500">
+                    <span className="text-2xl mb-1.5 block">👨‍👧</span>
+                    <p className="font-semibold text-slate-800">No students currently linked</p>
+                    <p className="mt-1 max-w-sm mx-auto">
+                      Click <strong className="text-indigo-600 cursor-pointer" onClick={() => navigate(`/admin/users/${id}/edit`)}>Edit User & Roles</strong> to link enrolled students to this parent account.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Student Profile & Linked Guardians Section */}
+            {(roles.includes('student') || user?.student_profile) && (
+              <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🎓</span>
+                      <h3 className="text-lg font-bold text-slate-900">Student Profile & Linked Guardians</h3>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Institutional academic records and associated parent/guardian contacts.
+                    </p>
+                  </div>
+                  {user?.student_profile?.student_id && (
+                    <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 font-mono text-xs font-bold text-emerald-700">
+                      {user.student_profile.student_id}
+                    </span>
+                  )}
+                </div>
+
+                {user?.student_profile ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-3 text-xs">
+                      <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+                        <p className="text-slate-400 font-medium uppercase text-[10px]">Academic Grade</p>
+                        <p className="font-bold text-slate-800 mt-0.5">{user.student_profile.current_grade || '—'}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+                        <p className="text-slate-400 font-medium uppercase text-[10px]">Current Class / Section</p>
+                        <p className="font-bold text-slate-800 mt-0.5">{user.student_profile.current_class || '—'}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+                        <p className="text-slate-400 font-medium uppercase text-[10px]">Academic Year</p>
+                        <p className="font-bold text-slate-800 mt-0.5">{user.student_profile.academic_year || '—'}</p>
+                      </div>
+                    </div>
+
+                    {/* Linked Parent Accounts */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                        Linked Parents / Legal Guardians
+                      </h4>
+                      {user.student_profile.linked_parents && user.student_profile.linked_parents.length > 0 ? (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {user.student_profile.linked_parents.map((parent) => (
+                            <div
+                              key={parent.id}
+                              className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 flex items-start gap-3"
+                            >
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-bold text-xs">
+                                👨‍👩‍👧
+                              </div>
+                              <div className="min-w-0 flex-1 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-bold text-slate-900 truncate">{parent.full_name}</p>
+                                  <span className="rounded bg-blue-50 text-blue-700 px-1.5 py-0.5 text-[10px] font-bold">
+                                    {parent.relationship || 'Guardian'}
+                                  </span>
+                                </div>
+                                <p className="text-slate-600 text-[11px] mt-0.5 font-mono truncate">{parent.email}</p>
+                                {parent.phone_number && (
+                                  <p className="text-slate-500 text-[11px] mt-0.5">📞 {parent.phone_number}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-600">
+                          <p>
+                            <strong>Guardian Contact:</strong> {user.student_profile.guardian_name || 'Not recorded'} ({user.student_profile.guardian_relationship || 'Parent'})
+                          </p>
+                          <p className="text-slate-500 text-[11px] mt-0.5">
+                            Email: {user.student_profile.guardian_email || '—'} • Phone: {user.student_profile.guardian_phone || '—'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">
+                    Student profile records pending synchronization.
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Login History / Audit Trail */}
             <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">

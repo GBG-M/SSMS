@@ -32,11 +32,20 @@ def provision_student_account(student_data, parent_email, parent_phone, campus_c
     if not student_email:
         raise ValueError("Student email is required.")
 
+    student_email = str(student_email).strip().lower()
+    parent_email = str(parent_email).strip().lower()
+
+    if student_email == parent_email:
+        raise ValueError("Student email and parent email cannot be identical. Each portal account requires a distinct email address.")
+
     if Student.objects.filter(student_id=student_id).exists():
         raise ValueError(f"Student with ID '{student_id}' already exists.")
 
     if User.objects.filter(email__iexact=student_email).exists():
         raise ValueError(f"A user with email '{student_email}' already exists.")
+
+    if Student.objects.filter(email__iexact=student_email).exists():
+        raise ValueError(f"A student with email '{student_email}' already exists.")
 
     student_first_name = student_data.get('first_name', '')
     student_last_name = student_data.get('last_name', '')
