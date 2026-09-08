@@ -70,6 +70,7 @@ class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     role_names = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
+    student_profile = serializers.SerializerMethodField()
     taught_classes_summary = serializers.SerializerMethodField()
     username = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -86,6 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
             'full_name',
             'role_names',
             'children',
+            'student_profile',
             'taught_classes_summary',
             'roles',
             'password',
@@ -137,6 +139,45 @@ class UserSerializer(serializers.ModelSerializer):
                 for student in students
             ]
         return []
+
+    def get_student_profile(self, obj):
+        """Returns student enrollment and linked guardian records if user is a student."""
+        if hasattr(obj, 'student_profile') and obj.student_profile is not None:
+            sp = obj.student_profile
+            linked_parents = [
+                {
+                    'id': str(p.id),
+                    'user_id': str(p.user.id),
+                    'full_name': p.user.full_name,
+                    'email': p.user.email,
+                    'phone_number': p.phone_number,
+                    'relationship': p.relationship,
+                    'is_primary': p.is_primary,
+                }
+                for p in sp.parents.select_related('user').all()
+            ] if hasattr(sp, 'parents') else []
+
+            return {
+                'id': str(sp.id),
+                'student_id': sp.student_id,
+                'first_name': sp.first_name,
+                'last_name': sp.last_name,
+                'full_name': sp.full_name,
+                'current_grade': sp.current_grade,
+                'current_class': sp.current_class,
+                'academic_year': sp.academic_year,
+                'status': sp.status,
+                'gender': sp.gender,
+                'email': sp.email,
+                'phone_number': sp.phone_number,
+                'address': sp.address,
+                'guardian_name': sp.guardian_name,
+                'guardian_phone': sp.guardian_phone,
+                'guardian_email': sp.guardian_email,
+                'guardian_relationship': sp.guardian_relationship,
+                'linked_parents': linked_parents,
+            }
+        return None
 
     def get_taught_classes_summary(self, obj):
         """Returns assigned class sections if user is a teacher."""
@@ -213,6 +254,33 @@ class UserSerializer(serializers.ModelSerializer):
                 instance.roles.add(role_obj)
         if password:
             instance.set_password(password)
+
+        # Support updating linked students for parents
+        student_ids = self.initial_data.get('student_ids') or self.initial_data.get('children_ids')
+        if student_ids is not None and isinstance(student_ids, list):
+            parent_profile, _ = ParentProfile.objects.get_or_create(user=instance)
+            from students.models import Student
+            from django.db.models import Q
+            import uuid
+            
+            pks = []
+            codes = []
+            for s in student_ids:
+                s_str = str(s).strip()
+                if s_str.isdigit():
+                    pks.append(int(s_str))
+                else:
+                    codes.append(s_str)
+                    try:
+                        pks.append(uuid.UUID(s_str))
+                    except (ValueError, AttributeError):
+                        pass
+
+            matched_students = Student.objects.filter(
+                Q(id__in=pks) | Q(student_id__in=codes)
+            )
+            parent_profile.students.set(matched_students)
+
         return super().update(instance, validated_data)
 
 
@@ -302,6 +370,7 @@ class ParentProfileSerializer(serializers.ModelSerializer):
     Serializer for Parent Profile
     """
     user = UserSerializer(read_only=True)
+    children = serializers.SerializerMethodField()
     
     class Meta:
         model = ParentProfile
@@ -311,10 +380,28 @@ class ParentProfileSerializer(serializers.ModelSerializer):
             'phone_number',
             'relationship',
             'is_primary',
+            'children',
             'created_at',
             'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_children(self, obj):
+        return [
+            {
+                'id': str(s.id),
+                'student_id': s.student_id,
+                'first_name': s.first_name,
+                'last_name': s.last_name,
+                'full_name': s.full_name,
+                'current_grade': s.current_grade,
+                'current_class': s.current_class,
+                'academic_year': s.academic_year,
+                'status': s.status,
+                'email': s.email,
+            }
+            for s in obj.students.all()
+        ]
 
 
 class ProvisionStudentSerializer(serializers.Serializer):

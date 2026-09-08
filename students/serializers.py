@@ -17,6 +17,7 @@ class StudentSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     temporary_password = serializers.SerializerMethodField()
     parent_temporary_password = serializers.SerializerMethodField()
+    linked_parents = serializers.SerializerMethodField()
     
     class Meta:
         model = Student
@@ -31,6 +32,7 @@ class StudentSerializer(serializers.ModelSerializer):
             'academic_year',
             'guardian_name', 'guardian_relationship', 
             'guardian_phone', 'guardian_email',
+            'linked_parents',
             'status', 'is_active',
             'nationality', 'religion', 'medical_conditions', 'allergies',
             'profile_picture',
@@ -43,6 +45,22 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def get_parent_temporary_password(self, obj):
         return getattr(obj, '_parent_temporary_password', None)
+
+    def get_linked_parents(self, obj):
+        if hasattr(obj, 'parents'):
+            return [
+                {
+                    'id': str(p.id),
+                    'user_id': str(p.user.id),
+                    'full_name': p.user.full_name,
+                    'email': p.user.email,
+                    'phone_number': p.phone_number,
+                    'relationship': p.relationship,
+                    'is_primary': p.is_primary,
+                }
+                for p in obj.parents.select_related('user').all()
+            ]
+        return []
 
     def validate_email(self, value):
         if not value:
@@ -155,14 +173,33 @@ class StudentListSerializer(serializers.ModelSerializer):
     
     full_name = serializers.ReadOnlyField()
     age = serializers.ReadOnlyField()
+    linked_parents = serializers.SerializerMethodField()
     
     class Meta:
         model = Student
         fields = [
             'id', 'student_id', 'first_name', 'last_name', 'full_name',
             'gender', 'age', 'email', 'phone_number',
-            'current_grade', 'current_class', 'status', 'profile_picture'
+            'current_grade', 'current_class', 'status', 'profile_picture',
+            'guardian_name', 'guardian_relationship', 'guardian_phone', 'guardian_email',
+            'linked_parents'
         ]
+
+    def get_linked_parents(self, obj):
+        if hasattr(obj, 'parents'):
+            return [
+                {
+                    'id': str(p.id),
+                    'user_id': str(p.user.id),
+                    'full_name': p.user.full_name,
+                    'email': p.user.email,
+                    'phone_number': p.phone_number,
+                    'relationship': p.relationship,
+                    'is_primary': p.is_primary,
+                }
+                for p in obj.parents.select_related('user').all()
+            ]
+        return []
 
 
 class AcademicRecordSerializer(serializers.ModelSerializer):

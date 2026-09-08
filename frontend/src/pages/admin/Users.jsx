@@ -397,11 +397,21 @@ export default function Users() {
       const username = user.username || ''
       const email = user.email || ''
 
+      const childrenMatch = (user.children || []).some((c) =>
+        (c.full_name && c.full_name.toLowerCase().includes(searchValue)) ||
+        (c.student_id && c.student_id.toLowerCase().includes(searchValue))
+      )
+      const studentIdMatch = user.student_profile?.student_id
+        ? user.student_profile.student_id.toLowerCase().includes(searchValue)
+        : false
+
       const matchesSearch =
         !searchValue ||
         username.toLowerCase().includes(searchValue) ||
         email.toLowerCase().includes(searchValue) ||
-        fullName.toLowerCase().includes(searchValue)
+        fullName.toLowerCase().includes(searchValue) ||
+        childrenMatch ||
+        studentIdMatch
 
       const matchesStatus =
         statusFilter === 'all' ||
@@ -760,6 +770,28 @@ export default function Users() {
                                 {formatRole(role)}
                               </span>
                             ))}
+
+                            {/* Linked Children indicator for Parents */}
+                            {user.children && user.children.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700"
+                                title={user.children.map((c) => `${c.full_name} (${c.student_id})`).join(', ')}
+                              >
+                                <span>👨‍👧</span>
+                                <span>{user.children.length} {user.children.length === 1 ? 'Child' : 'Children'}</span>
+                              </span>
+                            )}
+
+                            {/* Student ID badge for Students */}
+                            {user.student_profile?.student_id && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-mono font-bold text-emerald-700"
+                                title={`Grade: ${user.student_profile.current_grade} • Class: ${user.student_profile.current_class}`}
+                              >
+                                <span>🎓</span>
+                                <span>{user.student_profile.student_id}</span>
+                              </span>
+                            )}
 
                           </div>
 
