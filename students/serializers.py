@@ -1,23 +1,27 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Student, AcademicRecord, Attendance, StudentDocument
-from accounts.serializers import UserSerializer
+from accounts.serializers import UserSerializer, generate_secure_temporary_password
+from accounts.models import Role, ParentProfile
 
 User = get_user_model()
 
 
 class StudentSerializer(serializers.ModelSerializer):
-    """Main Student Serializer"""
+    """Main Student Serializer with automatic User and Parent synchronization"""
     
     full_name = serializers.ReadOnlyField()
     age = serializers.ReadOnlyField()
     is_active = serializers.ReadOnlyField()
     user_details = UserSerializer(source='user', read_only=True)
+    temporary_password = serializers.SerializerMethodField()
+    parent_temporary_password = serializers.SerializerMethodField()
     
     class Meta:
         model = Student
         fields = [
             'id', 'student_id', 'user', 'user_details',
+            'temporary_password', 'parent_temporary_password',
             'first_name', 'last_name', 'middle_name', 'full_name',
             'date_of_birth', 'age', 'gender',
             'email', 'phone_number', 'address',
@@ -31,8 +35,14 @@ class StudentSerializer(serializers.ModelSerializer):
             'profile_picture',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'enrollment_date']
+        read_only_fields = ['created_at', 'updated_at', 'enrollment_date', 'temporary_password', 'parent_temporary_password']
     
+    def get_temporary_password(self, obj):
+        return getattr(obj, '_temporary_password', None)
+
+    def get_parent_temporary_password(self, obj):
+        return getattr(obj, '_parent_temporary_password', None)
+
     def create(self, validated_data):
         # Auto-generate student_id if not provided
         if not validated_data.get('student_id'):
@@ -46,7 +56,86 @@ class StudentSerializer(serializers.ModelSerializer):
                     except ValueError:
                         last_id = 0
             validated_data['student_id'] = f"STU{last_id + 1:06d}"
-        return super().create(validated_data)
+
+        student_id = validated_data['student_id']
+        email = validated_data.get('email')
+        first_name = validated_data.get('first_name', '')
+        last_name = validated_data.get('last_name', '')
+        guardian_email = validated_data.get('guardian_email')
+        guardian_phone = validated_data.get('guardian_phone', '')
+        guardian_name = validated_data.get('guardian_name', '')
+        guardian_relationship = validated_data.get('guardian_relationship', 'Parent')
+
+        # Auto-provision portal User account for the student if user is not passed
+        user = validated_data.get('user')
+        temp_student_password = None
+        if not user and email:
+            user = User.objects.filter(email__iexact=email).first()
+            if not user:
+                base_username = f"student_{student_id.lower()}"
+                username = base_username
+                counter = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}_{counter}"
+                    counter += 1
+
+                temp_student_password = generate_secure_temporary_password(12)
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=temp_student_password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    must_reset_password=True,
+                )
+            student_role, _ = Role.objects.get_or_create(name=Role.STUDENT)
+            user.roles.add(student_role)
+            validated_data['user'] = user
+
+        student = super().create(validated_data)
+        if temp_student_password:
+            student._temporary_password = temp_student_password
+
+        # Auto-provision or link Guardian/Parent account & profile if guardian_email is supplied
+        if guardian_email:
+            temp_parent_password = None
+            parent_user = User.objects.filter(email__iexact=guardian_email).first()
+            if not parent_user:
+                base_p_username = f"parent_{student_id.lower()}"
+                p_username = base_p_username
+                p_counter = 1
+                while User.objects.filter(username=p_username).exists():
+                    p_username = f"{base_p_username}_{p_counter}"
+                    p_counter += 1
+
+                p_parts = guardian_name.split(' ', 1) if guardian_name else ['Parent', '']
+                p_first = p_parts[0] if p_parts else 'Parent'
+                p_last = p_parts[1] if len(p_parts) > 1 else ''
+                temp_parent_password = generate_secure_temporary_password(12)
+                parent_user = User.objects.create_user(
+                    username=p_username,
+                    email=guardian_email,
+                    password=temp_parent_password,
+                    first_name=p_first,
+                    last_name=p_last,
+                    must_reset_password=True,
+                )
+            parent_role, _ = Role.objects.get_or_create(name=Role.PARENT)
+            parent_user.roles.add(parent_role)
+
+            parent_profile, _ = ParentProfile.objects.get_or_create(
+                user=parent_user,
+                defaults={
+                    'phone_number': guardian_phone,
+                    'relationship': guardian_relationship,
+                    'is_primary': True,
+                }
+            )
+            parent_profile.students.add(student)
+            if temp_parent_password:
+                student._parent_temporary_password = temp_parent_password
+
+        return student
 
 
 class StudentListSerializer(serializers.ModelSerializer):

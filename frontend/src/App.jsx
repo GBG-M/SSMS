@@ -64,6 +64,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/force-password-reset" element={<ForcePasswordReset />} />
+        <Route path="/must-pass-reset" element={<ForcePasswordReset />} />
+        <Route path="/must-reset-password" element={<ForcePasswordReset />} />
 
         {/* ================= GENERAL PROTECTED ================= */}
         <Route

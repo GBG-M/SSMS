@@ -148,30 +148,40 @@ class ForcePasswordResetAPIView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        user_id = serializer.validated_data.get('pre_auth_user_id')
+        user_id = serializer.validated_data.get('pre_auth_user_id', '').strip()
         new_password = serializer.validated_data.get('new_password')
         
         # Check cache for valid pre-auth session
         cached_user_id = cache.get(f'pre_auth_user_{user_id}')
-        if not cached_user_id:
-            # Fallback: check if valid user UUID directly
+        user = None
+
+        if cached_user_id:
             try:
-                user = User.objects.get(id=user_id)
-                if not user.must_reset_password:
-                    return Response(
-                        {'error': 'Invalid or expired pre-auth session. Please login again.'}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            except Exception:
-                return Response(
-                    {'error': 'Invalid or expired pre-auth session. Please login again.'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        else:
-            try:
-                user = User.objects.get(id=user_id)
+                user = User.objects.get(id=cached_user_id)
             except User.DoesNotExist:
-                return Response({'error': 'User not found.'}, status=status.HTTP_400_BAD_REQUEST)
+                user = None
+
+        if not user:
+            # Fallback: check if valid user UUID or email directly
+            try:
+                user = User.objects.get(id=user_id)
+            except Exception:
+                try:
+                    user = User.objects.get(email__iexact=user_id)
+                except Exception:
+                    user = None
+
+        if not user:
+            return Response(
+                {'error': 'Account not found or session expired. Please verify your email or log in.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not user.must_reset_password:
+            return Response(
+                {'error': 'Password reset is not pending for this account. Please log in with your active password.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user.set_password(new_password)
@@ -183,11 +193,13 @@ class ForcePasswordResetAPIView(APIView):
             
             # Authenticate and issue token
             token, _ = Token.objects.get_or_create(user=user)
+            role_names = [r.name for r in user.roles.all()]
             return Response({
                 'message': 'Password updated successfully.',
                 'token': token.key,
-                'user_id': user.id,
-                'email': user.email
+                'user_id': str(user.id),
+                'email': user.email,
+                'role_names': role_names
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -275,11 +287,17 @@ class ProvisionStudentAccountAPIView(APIView):
                 campus_code=data.get('campus_code', 'MAIN')
             )
 
+            parent_temp_pwd = getattr(parent_profile, '_temporary_password', None)
             return Response({
                 'message': 'Account provisioned successfully.',
                 'student_id': student.student_id,
                 'student_email': student.email,
+                'student_username': getattr(student, '_user_username', student.email.split('@')[0]),
+                'student_temporary_password': getattr(student, '_temporary_password', None),
                 'parent_email': parent_profile.user.email,
+                'parent_username': getattr(parent_profile, '_user_username', parent_profile.user.username),
+                'parent_temporary_password': parent_temp_pwd,
+                'parent_is_existing': parent_temp_pwd is None,
             }, status=status.HTTP_201_CREATED)
 
         except ValueError as e:
@@ -337,7 +355,18 @@ class UserListAPIView(generics.ListCreateAPIView):
             'count': queryset.count(),
             'users': serializer.data
         })
-        
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        headers = self.get_success_headers(serializer.data)
+        return Response({
+            'message': 'User registered successfully.',
+            'user': serializer.data,
+            'temporary_password': getattr(user, '_raw_password', None),
+            'must_reset_password': user.must_reset_password,
+        }, status=status.HTTP_201_CREATED, headers=headers)
 
 class UserDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     """

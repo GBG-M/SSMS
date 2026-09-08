@@ -160,3 +160,43 @@ export async function getUserLoginHistory(userId = null) {
   const data = await res.json().catch(() => [])
   return Array.isArray(data) ? data : []
 }
+
+export async function createUser(userData) {
+  const token = getToken()
+  const res = await fetch(`${API_BASE_URL}/users/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(userData),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const errorMsg =
+      data.error ||
+      data.detail ||
+      (data.email ? (Array.isArray(data.email) ? data.email[0] : data.email) : null) ||
+      (data.username ? (Array.isArray(data.username) ? data.username[0] : data.username) : null) ||
+      'Failed to register user.'
+    throw new Error(errorMsg)
+  }
+  return data
+}
+
+export async function provisionStudentAccount(provisionData) {
+  const token = getToken()
+  const res = await fetch(`${API_BASE_URL}/provision-student/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(provisionData),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || data.detail || 'Failed to provision student and guardian accounts.')
+  }
+  return data
+}

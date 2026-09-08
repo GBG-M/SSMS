@@ -15,6 +15,9 @@ export default function ChangePassword() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -180,7 +183,6 @@ setTimeout(() => {
 
             {/* Current password */}
             <div className="mb-6">
-
               <label
                 htmlFor="old_password"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -188,23 +190,32 @@ setTimeout(() => {
                 Current Password
               </label>
 
-              <input
-                id="old_password"
-                name="old_password"
-                type="password"
-                value={formData.old_password}
-                onChange={handleChange}
-                required
-                autoComplete="current-password"
-                placeholder="Enter your current password"
-                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
+              <div className="relative">
+                <input
+                  id="old_password"
+                  name="old_password"
+                  type={showOldPassword ? 'text' : 'password'}
+                  value={formData.old_password}
+                  onChange={handleChange}
+                  required
+                  autoComplete="current-password"
+                  placeholder="Enter your current password"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-20 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                />
 
+                <button
+                  type="button"
+                  onClick={() => setShowOldPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-xs font-semibold text-slate-500 transition hover:text-blue-600 select-none"
+                  aria-label={showOldPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showOldPassword ? '🙈 Hide' : '👁️ Show'}
+                </button>
+              </div>
             </div>
 
             {/* New password */}
             <div className="mb-6">
-
               <label
                 htmlFor="new_password"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -212,27 +223,36 @@ setTimeout(() => {
                 New Password
               </label>
 
-              <input
-                id="new_password"
-                name="new_password"
-                type="password"
-                value={formData.new_password}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
-                placeholder="Enter your new password"
-                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
+              <div className="relative">
+                <input
+                  id="new_password"
+                  name="new_password"
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={formData.new_password}
+                  onChange={handleChange}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Enter your new password"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-20 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-xs font-semibold text-slate-500 transition hover:text-blue-600 select-none"
+                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showNewPassword ? '🙈 Hide' : '👁️ Show'}
+                </button>
+              </div>
 
               <p className="mt-2 text-xs text-slate-400">
                 Use at least 8 characters.
               </p>
-
             </div>
 
             {/* Confirm password */}
             <div className="mb-8">
-
               <label
                 htmlFor="confirm_password"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -240,18 +260,38 @@ setTimeout(() => {
                 Confirm New Password
               </label>
 
-              <input
-                id="confirm_password"
-                name="confirm_password"
-                type="password"
-                value={formData.confirm_password}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
-                placeholder="Confirm your new password"
-                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
+              <div className="relative">
+                <input
+                  id="confirm_password"
+                  name="confirm_password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={formData.confirm_password}
+                  onChange={handleChange}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Confirm your new password"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-20 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                />
 
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-xs font-semibold text-slate-500 transition hover:text-blue-600 select-none"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? '🙈 Hide' : '👁️ Show'}
+                </button>
+              </div>
+
+              {formData.confirm_password && (
+                <div className="mt-1 text-[11px] font-semibold">
+                  {formData.new_password === formData.confirm_password ? (
+                    <span className="text-emerald-600">✓ Passwords match</span>
+                  ) : (
+                    <span className="text-red-500">✗ Passwords do not match</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Buttons */}

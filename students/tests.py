@@ -115,6 +115,50 @@ class StudentAPITests(APITestCase):
         response = self.client.post(self.students_url, payload, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['student_id'], 'STU000002')
+        self.assertIsNotNone(response.data.get('temporary_password'))
+        
+        # Verify student user was auto-provisioned
+        created_student = Student.objects.get(student_id='STU000002')
+        self.assertIsNotNone(created_student.user)
+        self.assertEqual(created_student.user.email, 'michael.brown@example.com')
+        self.assertTrue(created_student.user.must_reset_password)
+        self.assertTrue(created_student.user.roles.filter(name=Role.STUDENT).exists())
+
+    def test_create_student_with_guardian_auto_provisions_both(self):
+        self.client.force_authenticate(user=self.admin_user)
+        payload = {
+            'student_id': 'STU000003',
+            'first_name': 'David',
+            'last_name': 'Lee',
+            'date_of_birth': '2008-11-10',
+            'gender': 'MALE',
+            'email': 'david.lee@example.com',
+            'phone_number': '5559998888',
+            'address': '789 Oak St',
+            'emergency_contact_name': 'Grace Lee',
+            'emergency_contact_phone': '5551112222',
+            'current_grade': '11',
+            'current_class': 'Class 11A',
+            'academic_year': '2026',
+            'guardian_name': 'Grace Lee',
+            'guardian_relationship': 'Mother',
+            'guardian_phone': '5551112222',
+            'guardian_email': 'grace.lee@example.com',
+            'status': 'ACTIVE'
+        }
+        res = self.client.post(self.students_url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIsNotNone(res.data.get('temporary_password'))
+        self.assertIsNotNone(res.data.get('parent_temporary_password'))
+
+        student = Student.objects.get(student_id='STU000003')
+        self.assertIsNotNone(student.user)
+        self.assertEqual(student.user.email, 'david.lee@example.com')
+
+        parent_user = User.objects.filter(email='grace.lee@example.com').first()
+        self.assertIsNotNone(parent_user)
+        self.assertTrue(parent_user.roles.filter(name=Role.PARENT).exists())
+        self.assertTrue(parent_user.parent_profile.students.filter(student_id='STU000003').exists())
 
     def test_student_and_parent_cannot_create_or_delete_student(self):
         # 1. Student cannot create new students

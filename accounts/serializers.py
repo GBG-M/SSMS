@@ -1,4 +1,6 @@
 # accounts/serializers.py
+import secrets
+import string
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -6,6 +8,12 @@ from django.core.exceptions import ValidationError
 from .models import User, Role, StudentProfile, ParentProfile
 
 User = get_user_model()
+
+
+def generate_secure_temporary_password(length=12):
+    """Generate a cryptographically secure temporary password"""
+    characters = string.ascii_letters + string.digits + "!@#$%^&*"
+    return ''.join(secrets.choice(characters) for _ in range(length))
 
 
 class LoginSerializer(serializers.Serializer):
@@ -57,10 +65,13 @@ class PasswordResetSerializer(serializers.Serializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """
-    Serializer for User model
+    Serializer for User model with full creation and update capabilities
     """
     full_name = serializers.SerializerMethodField()
     role_names = serializers.SerializerMethodField()
+    username = serializers.CharField(required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    roles = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
     
     class Meta:
         model = User
@@ -72,6 +83,8 @@ class UserSerializer(serializers.ModelSerializer):
             'last_name',
             'full_name',
             'role_names',
+            'roles',
+            'password',
             'is_active', 
             'is_staff', 
             'is_superuser',
@@ -99,17 +112,60 @@ class UserSerializer(serializers.ModelSerializer):
         return []
     
     def validate_email(self, value):
-        if User.objects.filter(email=value).exclude(id=self.instance.id if self.instance else None).exists():
+        if User.objects.filter(email__iexact=value).exclude(id=self.instance.id if self.instance else None).exists():
             raise serializers.ValidationError("A user with this email already exists.")
-        return value
+        return value.lower()
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        role_names = (
+            self.initial_data.get('role_names')
+            or validated_data.pop('roles', None)
+            or self.initial_data.get('roles', [])
+        )
+
+        email = validated_data.get('email')
+        if not validated_data.get('username'):
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            validated_data['username'] = username
+
+        # Auto-generate temporary password if omitted or blank
+        raw_password = password.strip() if password else generate_secure_temporary_password(12)
+        validated_data['must_reset_password'] = validated_data.get('must_reset_password', True)
+
+        user = User.objects.create_user(password=raw_password, **validated_data)
+
+        # Assign specified roles
+        if role_names and isinstance(role_names, list):
+            for r_name in role_names:
+                role_obj, _ = Role.objects.get_or_create(name=str(r_name).lower())
+                user.roles.add(role_obj)
+
+        # Automatically mark as staff if administrative or teacher role
+        staff_roles = ['admin', 'academic_coordinator', 'teacher']
+        if any(str(r).lower() in staff_roles for r in (role_names or [])):
+            user.is_staff = True
+            user.save(update_fields=['is_staff'])
+
+        # Store raw password temporarily on instance so view can return it
+        user._raw_password = raw_password
+        return user
 
     def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
         role_names = self.initial_data.get('role_names') or self.initial_data.get('roles')
         if role_names is not None and isinstance(role_names, list):
             instance.roles.clear()
             for r_name in role_names:
                 role_obj, _ = Role.objects.get_or_create(name=str(r_name).lower())
                 instance.roles.add(role_obj)
+        if password:
+            instance.set_password(password)
         return super().update(instance, validated_data)
 
 

@@ -49,6 +49,10 @@ export default function Login() {
           'preAuthUserId',
           data.pre_auth_user_id
         )
+        localStorage.setItem(
+          'userEmail',
+          formData.email
+        )
 
         navigate('/force-password-reset')
         return
