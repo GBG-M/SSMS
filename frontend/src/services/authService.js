@@ -199,4 +199,41 @@ export async function provisionStudentAccount(provisionData) {
     throw new Error(data.error || data.detail || 'Failed to provision student and guardian accounts.')
   }
   return data
-}
+}
+
+export async function registerUser(registrationData) {
+  const response = await fetch(`${API_BASE_URL}/register/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(registrationData),
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    const errorMsg =
+      data.error ||
+      data.detail ||
+      (data.email ? (Array.isArray(data.email) ? data.email[0] : data.email) : null) ||
+      (data.username ? (Array.isArray(data.username) ? data.username[0] : data.username) : null) ||
+      (data.password ? (Array.isArray(data.password) ? data.password[0] : data.password) : null) ||
+      (data.confirm_password ? (Array.isArray(data.confirm_password) ? data.confirm_password[0] : data.confirm_password) : null) ||
+      (data.role ? (Array.isArray(data.role) ? data.role[0] : data.role) : null) ||
+      data.message ||
+      'Registration failed. Please review your details and try again.'
+    throw new Error(errorMsg)
+  }
+
+  if (data.token) {
+    localStorage.setItem('authToken', data.token)
+    localStorage.setItem('userEmail', data.user?.email || '')
+    if (data.user) {
+      localStorage.setItem('userProfile', JSON.stringify(data.user))
+    }
+  }
+
+  return data
+}
+

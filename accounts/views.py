@@ -20,7 +20,8 @@ from .serializers import (
     UserSerializer, 
     ChangePasswordSerializer,
     RoleSerializer,
-    UserRoleUpdateSerializer
+    UserRoleUpdateSerializer,
+    RegisterSerializer
 )
 from .signals import provision_student_account
 
@@ -35,6 +36,49 @@ def get_client_ip(request):
     else:
         ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
     return ip or '127.0.0.1'
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RegisterAPIView(APIView):
+    """
+    Public endpoint for secure user self-registration (Students, Parents, Teachers).
+    Prevents unauthorized administrative privilege escalation.
+    Issues DRF token upon successful account creation.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = serializer.save()
+        client_ip = get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
+
+        # Record registration in login history
+        LoginHistory.objects.create(
+            user=user,
+            ip_address=client_ip,
+            user_agent=user_agent,
+            is_successful=True
+        )
+
+        token, _ = Token.objects.get_or_create(user=user)
+        role_names = [r.name for r in user.roles.all()]
+
+        return Response({
+            'message': 'Account registered successfully. Welcome to SSMS!',
+            'token': token.key,
+            'user': {
+                'id': str(user.id),
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role_names': role_names,
+            }
+        }, status=status.HTTP_201_CREATED)
 
 
 @method_decorator(csrf_exempt, name='dispatch')

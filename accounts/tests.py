@@ -360,3 +360,102 @@ class AdminUserRegistrationTests(APITestCase):
         self.assertEqual(len(res.data['taught_classes_summary']), 1)
         self.assertEqual(res.data['taught_classes_summary'][0]['section_code'], 'SEC-MATH-1')
         self.assertEqual(res.data['taught_classes_summary'][0]['subject_name'], 'Mathematics 101')
+
+
+class SecureRegistrationAPITests(APITestCase):
+    def setUp(self):
+        self.register_url = reverse('accounts-api:api_register')
+
+    def test_self_register_student_success(self):
+        payload = {
+            'first_name': 'Alex',
+            'last_name': 'Morgan',
+            'email': 'alex.morgan@test.edu',
+            'password': 'StrongPassword2026!',
+            'confirm_password': 'StrongPassword2026!',
+            'role': 'student',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('token', response.data)
+        self.assertIn('user', response.data)
+        self.assertEqual(response.data['user']['email'], 'alex.morgan@test.edu')
+        self.assertIn('student', response.data['user']['role_names'])
+
+        # Verify created in DB
+        user = User.objects.filter(email='alex.morgan@test.edu').first()
+        self.assertIsNotNone(user)
+        self.assertTrue(user.check_password('StrongPassword2026!'))
+        self.assertFalse(user.is_staff)
+
+    def test_self_register_parent_creates_profile(self):
+        payload = {
+            'first_name': 'Robert',
+            'last_name': 'Taylor',
+            'email': 'robert.taylor@test.edu',
+            'password': 'ParentPass2026!',
+            'confirm_password': 'ParentPass2026!',
+            'role': 'parent',
+            'phone_number': '+15551234567',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.filter(email='robert.taylor@test.edu').first()
+        self.assertIsNotNone(user)
+        self.assertTrue(user.roles.filter(name='parent').exists())
+        self.assertTrue(ParentProfile.objects.filter(user=user).exists())
+
+    def test_self_register_mismatched_passwords(self):
+        payload = {
+            'first_name': 'Fail',
+            'last_name': 'Password',
+            'email': 'mismatch@test.edu',
+            'password': 'StrongPassword2026!',
+            'confirm_password': 'DifferentPassword2026!',
+            'role': 'student',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('confirm_password', response.data)
+
+    def test_self_register_blocks_admin_privilege_escalation(self):
+        payload = {
+            'first_name': 'Attacker',
+            'last_name': 'User',
+            'email': 'fakeadmin@test.edu',
+            'password': 'StrongPassword2026!',
+            'confirm_password': 'StrongPassword2026!',
+            'role': 'admin',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('role', response.data)
+        self.assertFalse(User.objects.filter(email='fakeadmin@test.edu').exists())
+
+    def test_self_register_blocks_coordinator_escalation(self):
+        payload = {
+            'first_name': 'Attacker',
+            'last_name': 'User',
+            'email': 'fakecoord@test.edu',
+            'password': 'StrongPassword2026!',
+            'confirm_password': 'StrongPassword2026!',
+            'role': 'academic_coordinator',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('role', response.data)
+
+    def test_self_register_duplicate_email_rejected(self):
+        User.objects.create_user(email='existing@test.edu', password='ExistingPassword123!')
+        payload = {
+            'first_name': 'Another',
+            'last_name': 'User',
+            'email': 'existing@test.edu',
+            'password': 'StrongPassword2026!',
+            'confirm_password': 'StrongPassword2026!',
+            'role': 'student',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+

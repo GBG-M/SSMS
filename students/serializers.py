@@ -44,6 +44,17 @@ class StudentSerializer(serializers.ModelSerializer):
     def get_parent_temporary_password(self, obj):
         return getattr(obj, '_parent_temporary_password', None)
 
+    def validate_email(self, value):
+        if not value:
+            return value
+        normalized = value.strip().lower()
+        query = Student.objects.filter(email__iexact=normalized)
+        if self.instance:
+            query = query.exclude(id=self.instance.id)
+        if query.exists():
+            raise serializers.ValidationError("A student with this email address already exists.")
+        return normalized
+
     def create(self, validated_data):
         # Auto-generate student_id if not provided
         if not validated_data.get('student_id'):

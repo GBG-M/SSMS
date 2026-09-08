@@ -453,3 +453,93 @@ class UserSearchSerializer(serializers.Serializer):
     year = serializers.IntegerField(required=False, min_value=1, max_value=6)
     page = serializers.IntegerField(required=False, min_value=1, default=1)
     per_page = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20)
+
+
+class RegisterSerializer(serializers.Serializer):
+    """
+    Serializer for secure public and applicant registration.
+    Enforces strong password validation, unique email, and RBAC protection.
+    """
+    first_name = serializers.CharField(max_length=150, required=True)
+    last_name = serializers.CharField(max_length=150, required=True)
+    email = serializers.EmailField(required=True)
+    username = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=True)
+    role = serializers.CharField(required=False, default='student')
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError("A user with this email address already exists.")
+        return normalized
+
+    def validate_role(self, value):
+        role_cleaned = str(value).strip().lower()
+        allowed_self_roles = ['student', 'parent', 'teacher']
+        if role_cleaned in ['admin', 'academic_coordinator']:
+            raise serializers.ValidationError(
+                "Administrative and coordinator roles cannot be self-registered. Please contact IT administration."
+            )
+        if role_cleaned not in allowed_self_roles:
+            raise serializers.ValidationError(
+                f"Invalid account type. Allowed types: {', '.join(allowed_self_roles)}"
+            )
+        return role_cleaned
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+
+        if password != confirm_password:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+
+        # Validate password strength using Django's password validators
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            raise serializers.ValidationError({"password": list(e.messages)})
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data.pop('confirm_password')
+        password = validated_data.pop('password')
+        role_name = validated_data.pop('role', 'student').lower()
+        phone_number = validated_data.pop('phone_number', '')
+
+        email = validated_data['email']
+        username = validated_data.get('username')
+        if not username:
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            validated_data['username'] = username
+
+        # Create user
+        user = User.objects.create_user(
+            password=password,
+            must_reset_password=False,
+            **validated_data
+        )
+
+        # Assign role
+        role_obj, _ = Role.objects.get_or_create(name=role_name)
+        user.roles.add(role_obj)
+
+        # Create profile if parent
+        if role_name == 'parent':
+            ParentProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'phone_number': phone_number,
+                    'is_primary': True,
+                    'relationship': 'Parent'
+                }
+            )
+
+        return user

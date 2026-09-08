@@ -1,6 +1,6 @@
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { login } from '../../services/authService'
 
 export default function Login() {
@@ -311,6 +311,13 @@ return
             </button>
 
           </form>
+
+          <div className="mt-6 pt-5 border-t border-slate-100 text-center text-xs text-slate-600">
+            Don't have an account yet?{' '}
+            <Link to="/register" className="font-bold text-blue-600 hover:text-blue-700 hover:underline">
+              Register for Portal Access →
+            </Link>
+          </div>
 
         </div>
 

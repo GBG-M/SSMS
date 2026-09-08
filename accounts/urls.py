@@ -1,6 +1,7 @@
 # accounts/urls.py
 from django.urls import path
 from .views import (
+    RegisterAPIView,
     LoginAPIView,
     LogoutAPIView,
     ForcePasswordResetAPIView,
@@ -20,6 +21,7 @@ app_name = 'accounts'
 
 urlpatterns = [
     # Authentication endpoints
+    path('register/', RegisterAPIView.as_view(), name='api_register'),
     path('login/', LoginAPIView.as_view(), name='api_login'),
     path('logout/', LogoutAPIView.as_view(), name='api_logout'),
     
