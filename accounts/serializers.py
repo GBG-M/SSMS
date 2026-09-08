@@ -69,6 +69,8 @@ class UserSerializer(serializers.ModelSerializer):
     """
     full_name = serializers.SerializerMethodField()
     role_names = serializers.SerializerMethodField()
+    children = serializers.SerializerMethodField()
+    taught_classes_summary = serializers.SerializerMethodField()
     username = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     roles = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
@@ -83,6 +85,8 @@ class UserSerializer(serializers.ModelSerializer):
             'last_name',
             'full_name',
             'role_names',
+            'children',
+            'taught_classes_summary',
             'roles',
             'password',
             'is_active', 
@@ -109,6 +113,49 @@ class UserSerializer(serializers.ModelSerializer):
     def get_role_names(self, obj):
         if hasattr(obj, 'roles'):
             return [role.name for role in obj.roles.all()]
+        return []
+
+    def get_children(self, obj):
+        """Returns linked students if user has a ParentProfile."""
+        if hasattr(obj, 'parent_profile'):
+            students = obj.parent_profile.students.all()
+            return [
+                {
+                    'id': str(student.id),
+                    'student_id': student.student_id,
+                    'first_name': student.first_name,
+                    'last_name': student.last_name,
+                    'full_name': student.full_name,
+                    'current_grade': student.current_grade,
+                    'current_class': student.current_class,
+                    'academic_year': student.academic_year,
+                    'status': student.status,
+                    'gender': student.gender,
+                    'email': student.email,
+                    'date_of_birth': str(student.date_of_birth) if student.date_of_birth else None,
+                }
+                for student in students
+            ]
+        return []
+
+    def get_taught_classes_summary(self, obj):
+        """Returns assigned class sections if user is a teacher."""
+        if hasattr(obj, 'taught_classes'):
+            classes = obj.taught_classes.filter(is_active=True).select_related('subject', 'academic_year')
+            return [
+                {
+                    'id': str(cs.id),
+                    'section_code': cs.section_code,
+                    'name': cs.name,
+                    'subject_name': cs.subject.name if cs.subject else '',
+                    'subject_code': cs.subject.code if cs.subject else '',
+                    'academic_year': cs.academic_year.name if cs.academic_year else '',
+                    'room_number': cs.room_number,
+                    'capacity': cs.capacity,
+                    'enrolled_students_count': cs.enrolled_students_count,
+                }
+                for cs in classes
+            ]
         return []
     
     def validate_email(self, value):

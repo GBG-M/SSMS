@@ -126,6 +126,10 @@ function ForcePasswordReset() {
       setTimeout(() => {
         if (roleNames.includes('student')) {
           navigate('/student/dashboard', { replace: true })
+        } else if (roleNames.includes('teacher')) {
+          navigate('/teacher/dashboard', { replace: true })
+        } else if (roleNames.includes('parent')) {
+          navigate('/parent/dashboard', { replace: true })
         } else {
           navigate('/dashboard', { replace: true })
         }
