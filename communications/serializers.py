@@ -162,17 +162,21 @@ class ConversationThreadCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({"recipient_id": "You cannot message yourself."})
 
         # Relationship rules
-        if Role.PARENT in role_names and Role.ADMIN not in role_names and Role.ACADEMIC_COORDINATOR not in role_names:
+        is_staff_user = bool(role_names.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
+        is_teacher_user = Role.TEACHER in role_names and not is_staff_user
+        is_parent_user = Role.PARENT in role_names and not is_staff_user
+
+        if is_parent_user:
             # Must be a parent of this student
             if not hasattr(user, 'parent_profile') or not user.parent_profile.students.filter(id=student.id).exists():
                 raise serializers.ValidationError({"student_id": "You can only create inquiries for your own linked children."})
 
             # Recipient must be an active teacher of this student or an institutional staff
             recipient_roles = {r.name for r in recipient.roles.all()}
-            is_staff = bool(recipient_roles.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
-            is_teacher = Role.TEACHER in recipient_roles
+            is_staff_recipient = bool(recipient_roles.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
+            is_teacher_recipient = Role.TEACHER in recipient_roles
 
-            if not is_staff and is_teacher:
+            if not is_staff_recipient and is_teacher_recipient:
                 teaches_student = ClassSection.objects.filter(
                     teacher=recipient,
                     enrollments__student=student,
@@ -183,9 +187,36 @@ class ConversationThreadCreateSerializer(serializers.Serializer):
                     raise serializers.ValidationError({
                         "recipient_id": "This teacher does not currently teach any active classes for your child."
                     })
-            elif not is_staff:
+            elif not is_staff_recipient:
                 raise serializers.ValidationError({
                     "recipient_id": "Recipients must be verified teachers of your child or school administrators."
+                })
+
+        elif is_teacher_user:
+            # Must teach this student
+            teaches_student = ClassSection.objects.filter(
+                teacher=user,
+                enrollments__student=student,
+                enrollments__status='ACTIVE',
+                is_active=True
+            ).exists()
+            if not teaches_student:
+                raise serializers.ValidationError({
+                    "student_id": "You can only initiate inquiries regarding students currently enrolled in your classes."
+                })
+
+            # Recipient must be a parent of this student or institutional staff
+            recipient_roles = {r.name for r in recipient.roles.all()}
+            is_staff_recipient = bool(recipient_roles.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
+            is_parent_recipient = (
+                Role.PARENT in recipient_roles and
+                hasattr(recipient, 'parent_profile') and
+                recipient.parent_profile.students.filter(id=student.id).exists()
+            )
+
+            if not is_staff_recipient and not is_parent_recipient:
+                raise serializers.ValidationError({
+                    "recipient_id": "Recipients must be registered guardians of this student or school administrators."
                 })
 
         return attrs

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   fetchThreads,
   fetchThread,
@@ -25,6 +25,11 @@ const PRIORITY_COLORS = {
 }
 
 export default function CommunicationsHub({ userRole = 'PARENT', selectedChild = null }) {
+  const normalizedRole = (userRole || 'PARENT').toUpperCase()
+  const isParent = normalizedRole === 'PARENT'
+  const isTeacher = normalizedRole === 'TEACHER'
+  const isStaff = normalizedRole === 'ADMIN' || normalizedRole === 'STAFF' || normalizedRole === 'ACADEMIC_COORDINATOR'
+
   const [viewMode, setViewMode] = useState('threads') // 'threads' | 'notices'
   const [threads, setThreads] = useState([])
   const [selectedThread, setSelectedThread] = useState(null)
@@ -37,9 +42,16 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
+  // Parent child filter toggle
+  const [childFilterId, setChildFilterId] = useState(selectedChild?.id ? String(selectedChild.id) : 'all')
+
   // New Inquiry Modal State
   const [showInquiryModal, setShowInquiryModal] = useState(false)
   const [contactsData, setContactsData] = useState(null)
+  
+  // Teacher-specific picker state
+  const [selectedSectionId, setSelectedSectionId] = useState('')
+
   const [inquiryForm, setInquiryForm] = useState({
     student_id: selectedChild?.id || '',
     recipient_id: '',
@@ -61,24 +73,42 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
   })
   const [submittingBroadcast, setSubmittingBroadcast] = useState(false)
 
+  const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    if (selectedChild?.id && isParent) {
+      setChildFilterId(String(selectedChild.id))
+      setInquiryForm((prev) => ({ ...prev, student_id: selectedChild.id }))
+    }
+  }, [selectedChild?.id, isParent])
+
   useEffect(() => {
     loadThreads()
     loadContacts()
     loadAnnouncementsList()
-  }, [userRole, statusFilter, selectedChild?.id])
+  }, [normalizedRole, statusFilter, childFilterId])
 
+  // Live polling for threads and messages every 6 seconds
   useEffect(() => {
-    if (selectedChild?.id) {
-      setInquiryForm((prev) => ({ ...prev, student_id: selectedChild.id }))
-    }
-  }, [selectedChild?.id])
+    const pollInterval = setInterval(() => {
+      // 1. Silent thread list refresh
+      refreshThreadsSilent()
+
+      // 2. Refresh active conversation stream if open
+      if (selectedThread?.id) {
+        refreshActiveThreadSilent(selectedThread.id)
+      }
+    }, 6000)
+
+    return () => clearInterval(pollInterval)
+  }, [selectedThread?.id, statusFilter, childFilterId])
 
   async function loadThreads() {
     try {
       setLoadingThreads(true)
       const params = {}
       if (statusFilter !== 'all') params.status = statusFilter
-      if (selectedChild?.id && userRole === 'PARENT') params.student = selectedChild.id
+      if (isParent && childFilterId !== 'all') params.student = childFilterId
       const data = await fetchThreads(params)
       setThreads(data)
       if (data.length > 0 && !selectedThread) {
@@ -94,10 +124,38 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
     }
   }
 
+  async function refreshThreadsSilent() {
+    try {
+      const params = {}
+      if (statusFilter !== 'all') params.status = statusFilter
+      if (isParent && childFilterId !== 'all') params.student = childFilterId
+      const data = await fetchThreads(params)
+      setThreads(data)
+    } catch {}
+  }
+
+  async function refreshActiveThreadSilent(threadId) {
+    try {
+      const detail = await fetchThread(threadId)
+      setSelectedThread((prev) => {
+        if (!prev || prev.id !== threadId) return prev
+        // Only update if messages changed
+        if ((prev.messages || []).length !== (detail.messages || []).length) {
+          return detail
+        }
+        return prev
+      })
+    } catch {}
+  }
+
   async function loadContacts() {
     try {
       const data = await fetchContacts()
       setContactsData(data)
+      // Auto-set section if teacher
+      if (data?.role === 'teacher' && data.sections?.length > 0) {
+        setSelectedSectionId(String(data.sections[0].section_id))
+      }
     } catch (err) {
       console.error('Failed to load contacts:', err)
     }
@@ -120,7 +178,6 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
       setLoadingDetail(true)
       const detail = await fetchThread(threadId)
       setSelectedThread(detail)
-      // Update local unread counter in list
       setThreads((prev) =>
         prev.map((t) => (t.id === threadId ? { ...t, unread_count: 0 } : t))
       )
@@ -144,7 +201,6 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
         status: prev.status === 'RESOLVED' ? 'IN_PROGRESS' : prev.status,
       }))
       setReplyText('')
-      // Refresh list snippet
       setThreads((prev) =>
         prev.map((t) =>
           t.id === selectedThread.id
@@ -176,7 +232,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
       setThreads((prev) =>
         prev.map((t) => (t.id === selectedThread.id ? { ...t, status: 'RESOLVED' } : t))
       )
-      setSuccessMessage('Inquiry marked as resolved.')
+      setSuccessMessage('✓ Inquiry marked as resolved.')
       setTimeout(() => setSuccessMessage(''), 3000)
     } catch (err) {
       alert(err.message || 'Failed to resolve inquiry.')
@@ -203,7 +259,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
         category: 'ACADEMIC',
         initial_message: '',
       })
-      setSuccessMessage('✓ Inquiry created and sent to teacher/staff.')
+      setSuccessMessage('✓ Inquiry created and dispatched successfully.')
       setTimeout(() => setSuccessMessage(''), 4000)
     } catch (err) {
       alert(err.message || 'Failed to create inquiry.')
@@ -250,11 +306,21 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
     )
   })
 
-  // Eligible recipients list for Parent modal
+  // Contacts resolution for Parent
   const currentChildContacts = contactsData?.children?.find(
     (c) => String(c.student_id) === String(inquiryForm.student_id)
   )
-  const eligibleRecipients = currentChildContacts?.eligible_recipients || []
+  const eligibleRecipientsForParent = currentChildContacts?.eligible_recipients || []
+
+  // Contacts resolution for Teacher
+  const currentTeacherSection = contactsData?.sections?.find(
+    (s) => String(s.section_id) === String(selectedSectionId)
+  )
+  const studentsInTeacherSection = currentTeacherSection?.students || []
+  const selectedStudentForTeacher = studentsInTeacherSection.find(
+    (s) => String(s.student_id) === String(inquiryForm.student_id)
+  )
+  const eligibleParentsForTeacher = selectedStudentForTeacher?.parents || []
 
   return (
     <div className="space-y-6">
@@ -268,13 +334,16 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
             <h2 className="text-lg font-bold text-slate-900">
               Institutional Communication & Inquiries
             </h2>
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 uppercase">
+              {normalizedRole}
+            </span>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Secure, FERPA-compliant two-way messaging between verified guardians, teachers, and school administration.
+            Secure, two-way threaded inquiries between guardians, teachers, and school administration.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl bg-slate-100 p-1">
             <button
               onClick={() => setViewMode('threads')}
@@ -284,7 +353,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Conversations ({threads.length})
+              Inquiries ({threads.length})
             </button>
             <button
               onClick={() => setViewMode('notices')}
@@ -298,7 +367,8 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
             </button>
           </div>
 
-          {userRole === 'PARENT' && (
+          {/* Primary Action Button based on Role */}
+          {isParent && (
             <button
               onClick={() => setShowInquiryModal(true)}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-indigo-700 transition"
@@ -307,13 +377,38 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
             </button>
           )}
 
-          {(userRole === 'TEACHER' || userRole === 'STAFF') && (
-            <button
-              onClick={() => setShowBroadcastModal(true)}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition"
-            >
-              📢 Post Announcement
-            </button>
+          {isTeacher && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowInquiryModal(true)}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-indigo-700 transition"
+              >
+                ＋ Message Parent
+              </button>
+              <button
+                onClick={() => setShowBroadcastModal(true)}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition"
+              >
+                📢 Post Notice
+              </button>
+            </div>
+          )}
+
+          {isStaff && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowInquiryModal(true)}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-indigo-700 transition"
+              >
+                ＋ Start Inquiry
+              </button>
+              <button
+                onClick={() => setShowBroadcastModal(true)}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition"
+              >
+                📢 Post Announcement
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -340,20 +435,51 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:outline-none"
               />
 
-              <div className="flex items-center gap-1.5">
-                {['all', 'OPEN', 'RESOLVED'].map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setStatusFilter(f)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition ${
-                      statusFilter === f
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {f === 'all' ? 'All Inquiries' : f.toLowerCase()}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  {['all', 'OPEN', 'RESOLVED'].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setStatusFilter(f)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition ${
+                        statusFilter === f
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {f === 'all' ? 'All' : f.toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Parent Children Filter Pills */}
+                {isParent && contactsData?.children?.length > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setChildFilterId('all')}
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                        childFilterId === 'all'
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      All Kids
+                    </button>
+                    {contactsData.children.map((k) => (
+                      <button
+                        key={k.student_id}
+                        onClick={() => setChildFilterId(String(k.student_id))}
+                        className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                          String(childFilterId) === String(k.student_id)
+                            ? 'bg-slate-800 text-white'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {k.name.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -364,16 +490,14 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
               ) : filteredThreads.length === 0 ? (
                 <div className="py-12 text-center text-xs text-slate-400">
                   No conversation threads found.
-                  {userRole === 'PARENT' && (
-                    <div className="mt-2">
-                      <button
-                        onClick={() => setShowInquiryModal(true)}
-                        className="text-indigo-600 font-bold hover:underline"
-                      >
-                        Start your first inquiry
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setShowInquiryModal(true)}
+                      className="text-indigo-600 font-bold hover:underline"
+                    >
+                      {isParent ? 'Start your first inquiry' : 'Start a new conversation'}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 filteredThreads.map((thread) => {
@@ -430,7 +554,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                       )}
 
                       <div className="mt-2.5 flex items-center justify-between text-[10px] text-slate-400">
-                        <span>Initiated by {thread.created_by_name}</span>
+                        <span>By {thread.created_by_name}</span>
                         <span>{new Date(thread.updated_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
                       </div>
                     </div>
@@ -474,10 +598,10 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                       {selectedThread.subject}
                     </h3>
                     <p className="mt-1 text-xs text-slate-500">
-                      Regarding Student:{' '}
-                      <span className="font-semibold text-slate-800">
-                        {selectedThread.student_name} ({selectedThread.student_code || 'Enrolled'})
-                      </span>
+                      Student: <span className="font-semibold text-slate-800">{selectedThread.student_name}</span>
+                      {selectedThread.student_code && (
+                        <span className="ml-1 text-slate-400">({selectedThread.student_code})</span>
+                      )}
                     </p>
                   </div>
 
@@ -529,6 +653,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                       No messages recorded in this conversation yet.
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Reply Box */}
@@ -554,9 +679,9 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                 <span className="text-4xl mb-2">💬</span>
-                <h4 className="text-sm font-bold text-slate-800">Select a Conversation</h4>
+                <h4 className="text-sm font-bold text-slate-800">Select an Inquiry</h4>
                 <p className="text-xs text-slate-400 max-w-sm mt-1">
-                  Click on an inquiry from the list on the left to read the full conversation stream, or initiate a new inquiry.
+                  Choose a conversation from the left to review messages and reply, or start a new thread.
                 </p>
               </div>
             )}
@@ -571,7 +696,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
             <div>
               <h3 className="text-base font-bold text-slate-900">Official Notice Board & Circulars</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Official institutional bulletins published by the administration and faculty.
+                Official institutional bulletins published by administration and faculty.
               </p>
             </div>
           </div>
@@ -622,12 +747,18 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
         </div>
       )}
 
-      {/* MODAL 1: NEW INQUIRY (PARENTS) */}
+      {/* UNIVERSAL INQUIRY MODAL (PARENT / TEACHER / STAFF) */}
       {showInquiryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Start New Inquiry / Message Teacher</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                {isParent
+                  ? 'Start New Inquiry / Message Teacher'
+                  : isTeacher
+                  ? 'Message Parent / Guardian'
+                  : 'Start Institutional Inquiry'}
+              </h3>
               <button
                 onClick={() => setShowInquiryModal(false)}
                 className="text-slate-400 hover:text-slate-600 text-lg font-bold"
@@ -637,54 +768,165 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
             </div>
 
             <form onSubmit={handleCreateInquiry} className="mt-4 space-y-4 text-xs">
-              {/* Select Child */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Student</label>
-                <select
-                  value={inquiryForm.student_id}
-                  onChange={(e) => {
-                    const stuId = e.target.value
-                    setInquiryForm((prev) => ({
-                      ...prev,
-                      student_id: stuId,
-                      recipient_id: '',
-                    }))
-                  }}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
-                  required
-                >
-                  <option value="">-- Select Child --</option>
-                  {contactsData?.children?.map((child) => (
-                    <option key={child.student_id} value={child.student_id}>
-                      {child.name} ({child.grade || child.class_name || 'Enrolled'})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* PARENT WORKFLOW: Select Child -> Select Teacher */}
+              {isParent && (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Student</label>
+                    <select
+                      value={inquiryForm.student_id}
+                      onChange={(e) => {
+                        const stuId = e.target.value
+                        setInquiryForm((prev) => ({
+                          ...prev,
+                          student_id: stuId,
+                          recipient_id: '',
+                        }))
+                      }}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">-- Select Child --</option>
+                      {contactsData?.children?.map((child) => (
+                        <option key={child.student_id} value={child.student_id}>
+                          {child.name} ({child.grade || child.class_name || 'Enrolled'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Select Recipient (Teacher or Administration) */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Recipient</label>
-                <select
-                  value={inquiryForm.recipient_id}
-                  onChange={(e) => setInquiryForm((prev) => ({ ...prev, recipient_id: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
-                  required
-                  disabled={!inquiryForm.student_id}
-                >
-                  <option value="">-- Select Subject Teacher or Office --</option>
-                  {eligibleRecipients.map((rec) => (
-                    <option key={rec.id} value={rec.id}>
-                      {rec.name} — {rec.subject} ({rec.section || rec.role})
-                    </option>
-                  ))}
-                </select>
-                {inquiryForm.student_id && eligibleRecipients.length === 0 && (
-                  <p className="mt-1 text-[11px] text-amber-600">
-                    No active class teachers found for this student. You can select School Administration.
-                  </p>
-                )}
-              </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Recipient (Teacher or School Office)</label>
+                    <select
+                      value={inquiryForm.recipient_id}
+                      onChange={(e) => setInquiryForm((prev) => ({ ...prev, recipient_id: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                      disabled={!inquiryForm.student_id}
+                    >
+                      <option value="">-- Select Recipient --</option>
+                      {eligibleRecipientsForParent.map((rec) => (
+                        <option key={rec.id} value={rec.id}>
+                          {rec.name} — {rec.subject} ({rec.section || rec.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* TEACHER WORKFLOW: Select Class Section -> Select Student -> Select Parent */}
+              {isTeacher && (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Class Section</label>
+                    <select
+                      value={selectedSectionId}
+                      onChange={(e) => {
+                        setSelectedSectionId(e.target.value)
+                        setInquiryForm((prev) => ({
+                          ...prev,
+                          student_id: '',
+                          recipient_id: '',
+                        }))
+                      }}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">-- Select Teaching Section --</option>
+                      {contactsData?.sections?.map((sec) => (
+                        <option key={sec.section_id} value={sec.section_id}>
+                          {sec.section_name} ({sec.subject})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Student</label>
+                    <select
+                      value={inquiryForm.student_id}
+                      onChange={(e) => {
+                        const stuId = e.target.value
+                        const studentObj = studentsInTeacherSection.find((s) => String(s.student_id) === String(stuId))
+                        const defaultParentId = studentObj?.parents?.[0]?.id || ''
+                        setInquiryForm((prev) => ({
+                          ...prev,
+                          student_id: stuId,
+                          recipient_id: defaultParentId,
+                        }))
+                      }}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                      disabled={!selectedSectionId}
+                    >
+                      <option value="">-- Select Student --</option>
+                      {studentsInTeacherSection.map((stu) => (
+                        <option key={stu.student_id} value={stu.student_id}>
+                          {stu.name} ({stu.student_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Parent / Guardian</label>
+                    <select
+                      value={inquiryForm.recipient_id}
+                      onChange={(e) => setInquiryForm((prev) => ({ ...prev, recipient_id: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                      disabled={!inquiryForm.student_id}
+                    >
+                      <option value="">-- Select Guardian --</option>
+                      {eligibleParentsForTeacher.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.relationship || 'Guardian'}) - {p.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* STAFF / ADMIN WORKFLOW */}
+              {isStaff && (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Student Context</label>
+                    <select
+                      value={inquiryForm.student_id}
+                      onChange={(e) => setInquiryForm((prev) => ({ ...prev, student_id: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">-- Select Student --</option>
+                      {contactsData?.students?.map((stu) => (
+                        <option key={stu.student_id} value={stu.student_id}>
+                          {stu.name} ({stu.student_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Recipient</label>
+                    <select
+                      value={inquiryForm.recipient_id}
+                      onChange={(e) => setInquiryForm((prev) => ({ ...prev, recipient_id: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">-- Select Teacher or User --</option>
+                      {contactsData?.teachers?.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} (Teacher) - {t.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
 
               {/* Category */}
               <div>
@@ -709,7 +951,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                   type="text"
                   value={inquiryForm.subject}
                   onChange={(e) => setInquiryForm((prev) => ({ ...prev, subject: e.target.value }))}
-                  placeholder="e.g. Question regarding Unit 3 Math Test"
+                  placeholder="e.g. Inquiry regarding science homework"
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-800 focus:border-indigo-500 focus:outline-none"
                   required
                 />
@@ -722,7 +964,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                   rows="3"
                   value={inquiryForm.initial_message}
                   onChange={(e) => setInquiryForm((prev) => ({ ...prev, initial_message: e.target.value }))}
-                  placeholder="Describe your inquiry in detail..."
+                  placeholder="Type your message details here..."
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-800 focus:border-indigo-500 focus:outline-none"
                   required
                 />
@@ -741,7 +983,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                   disabled={submittingInquiry}
                   className="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white shadow hover:bg-indigo-700 transition disabled:opacity-50"
                 >
-                  {submittingInquiry ? 'Sending...' : 'Send Inquiry'}
+                  {submittingInquiry ? 'Sending...' : 'Send Message'}
                 </button>
               </div>
             </form>

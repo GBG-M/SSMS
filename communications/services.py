@@ -233,10 +233,13 @@ def get_eligible_contacts_for_user(user: User) -> Dict[str, Any]:
         return {'role': Role.TEACHER, 'sections': sections_data}
 
     # 3. Admin / Staff context
+    all_teachers = User.objects.filter(roles__name=Role.TEACHER).distinct()
+    all_students = Student.objects.all()[:100]
     return {
         'role': 'STAFF',
         'is_admin': True,
-        'message': 'Administrators have full institutional messaging directory access.'
+        'teachers': [{'id': t.id, 'name': t.full_name or t.email, 'email': t.email} for t in all_teachers],
+        'students': [{'student_id': s.id, 'student_code': s.student_id, 'name': s.full_name} for s in all_students],
     }
 
 

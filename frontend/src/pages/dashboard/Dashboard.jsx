@@ -537,6 +537,22 @@ export default function Dashboard() {
                 </p>
               </Link>
 
+              {/* 7. Institutional Communications */}
+              <Link
+                to="/communications"
+                className="group rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-md hover:ring-indigo-500"
+              >
+                <div className="mb-4 text-3xl">
+                  💬
+                </div>
+                <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition">
+                  Communications & Inquiries →
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Manage two-way parent-teacher inquiries, threaded messages, and official notice boards.
+                </p>
+              </Link>
+
             </div>
 
           </div>

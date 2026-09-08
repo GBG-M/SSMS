@@ -50,8 +50,9 @@ import ClassSchedules from "./pages/scheduling/ClassSchedules";
 import ExamSchedules from "./pages/scheduling/ExamSchedules";
 import Rooms from "./pages/scheduling/Rooms";
 
-// Notifications
+// Notifications & Communications
 import Notifications from "./features/notifications/Notifications";
+import CommunicationsPage from "./pages/communications/CommunicationsPage";
 
 // Finance Portal
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
@@ -79,6 +80,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/communications"
+          element={
+            <ProtectedRoute>
+              <CommunicationsPage />
             </ProtectedRoute>
           }
         />
