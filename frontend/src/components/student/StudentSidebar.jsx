@@ -72,6 +72,11 @@ export default function StudentSidebar() {
       path: "/communications",
       icon: "💬",
     },
+    {
+      name: "Notifications",
+      path: "/notifications",
+      icon: "🔔",
+    },
   ];
 
   const handleLogout = async () => {

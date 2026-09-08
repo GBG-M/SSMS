@@ -88,10 +88,11 @@ def on_class_schedule_saved(sender, instance, created, **kwargs):
         class_section = instance.class_section
         action_verb = "scheduled" if created else "rescheduled"
         title = f"Class Schedule Update: {class_section.name}"
+        room_name = instance.room.name if instance.room_id else 'TBD'
         message = (
             f"{class_section.name} has been {action_verb} for {instance.day_of_week} "
             f"from {instance.start_time.strftime('%H:%M')} to {instance.end_time.strftime('%H:%M')} "
-            f"in {instance.room.name}."
+            f"in {room_name}."
         )
 
         notify_class_section(
@@ -111,11 +112,12 @@ def on_exam_schedule_saved(sender, instance, created, **kwargs):
     from .services import notify_class_section
     try:
         class_section = instance.class_section
+        room_name = instance.room.name if instance.room_id else 'TBD'
         title = f"Exam Announced: {class_section.name} ({instance.get_exam_type_display()})"
         message = (
             f"{instance.get_exam_type_display()} exam for {class_section.name} is scheduled on "
             f"{instance.exam_date} from {instance.start_time.strftime('%H:%M')} to "
-            f"{instance.end_time.strftime('%H:%M')} in {instance.room.name}."
+            f"{instance.end_time.strftime('%H:%M')} in {room_name}."
         )
 
         notify_class_section(
