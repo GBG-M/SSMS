@@ -2,8 +2,9 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from accounts.models import User, Role, ParentProfile
-from students.models import Student, Attendance, AcademicRecord
 from datetime import date
+from django.core.files.uploadedfile import SimpleUploadedFile
+from students.models import Student, Attendance, AcademicRecord, StudentDocument
 
 
 class StudentAPITests(APITestCase):
@@ -246,3 +247,101 @@ class StudentAPITests(APITestCase):
         self.assertIn('total_students', response.data)
         self.assertIn('active_students', response.data)
         self.assertGreaterEqual(response.data['total_students'], 1)
+
+    def test_student_can_upload_and_delete_own_document(self):
+        self.client.force_authenticate(user=self.student_user)
+        documents_url = reverse('students-api:document-list')
+        dummy_file = SimpleUploadedFile("cert.pdf", b"PDF file content", content_type="application/pdf")
+        
+        # 1. Upload document for self
+        res = self.client.post(documents_url, {
+            'student': self.student.pk,
+            'title': 'Birth Certificate',
+            'document_type': 'BIRTH_CERT',
+            'description': 'Official copy',
+            'file': dummy_file
+        }, format='multipart')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        doc_id = res.data['id']
+        self.assertEqual(res.data['title'], 'Birth Certificate')
+
+        # 2. Delete own document
+        detail_url = reverse('students-api:document-detail', kwargs={'pk': doc_id})
+        del_res = self.client.delete(detail_url)
+        self.assertEqual(del_res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(StudentDocument.objects.filter(id=doc_id).exists())
+
+    def test_student_cannot_upload_document_for_other_student(self):
+        # Create another student
+        other_user = User.objects.create_user(
+            email='other@example.com',
+            username='otherstudent',
+            password='Password123!'
+        )
+        other_student = Student.objects.create(
+            user=other_user,
+            student_id='STU000099',
+            first_name='Other',
+            last_name='Student',
+            date_of_birth=date(2008, 1, 1),
+            gender='MALE',
+            email='other@example.com',
+            phone_number='1234567899',
+            address='123 Road',
+            emergency_contact_name='Parent',
+            emergency_contact_phone='1234567899',
+            current_grade='10',
+            current_class='Class 10A',
+            academic_year='2026',
+            guardian_name='Parent',
+            guardian_relationship='Parent',
+            guardian_phone='1234567899',
+            status='ACTIVE'
+        )
+
+        self.client.force_authenticate(user=self.student_user)
+        documents_url = reverse('students-api:document-list')
+        dummy_file = SimpleUploadedFile("cert2.pdf", b"PDF file content", content_type="application/pdf")
+
+        # Student user attempts to upload document scoped to other_student
+        res = self.client.post(documents_url, {
+            'student': other_student.pk,
+            'title': 'Malicious Doc',
+            'document_type': 'OTHER',
+            'file': dummy_file
+        }, format='multipart')
+
+        # Our backend perform_create automatically scopes student to self.student (request.user.student_profile)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        created_doc = StudentDocument.objects.get(id=res.data['id'])
+        self.assertEqual(created_doc.student.pk, self.student.pk)
+        self.assertNotEqual(created_doc.student.pk, other_student.pk)
+
+    def test_attendance_with_custom_date_and_upsert(self):
+        self.client.force_authenticate(user=self.staff_user)
+        attendance_url = reverse('students-api:attendance-list')
+        test_date = '2026-09-01'
+
+        # 1. Mark attendance for past date
+        res1 = self.client.post(attendance_url, {
+            'student': self.student.pk,
+            'date': test_date,
+            'status': 'ABSENT',
+            'reason': 'Medical checkup'
+        }, format='json')
+        self.assertEqual(res1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res1.data['date'], test_date)
+        self.assertEqual(res1.data['status'], 'ABSENT')
+
+        # 2. Update attendance on same date (upsert)
+        res2 = self.client.post(attendance_url, {
+            'student': self.student.pk,
+            'date': test_date,
+            'status': 'EXCUSED',
+            'reason': 'Doctor note provided'
+        }, format='json')
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(res2.data['date'], test_date)
+        self.assertEqual(res2.data['status'], 'EXCUSED')
+        self.assertEqual(Attendance.objects.filter(student=self.student, date=test_date).count(), 1)
+

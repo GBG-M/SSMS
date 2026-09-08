@@ -44,7 +44,11 @@ class StudentAccessPermission(BasePermission):
         if view_name in ['AttendanceViewSet', 'AcademicRecordViewSet'] or action_name in ['mark_attendance', 'add_academic_record']:
             return bool(role_names.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR, Role.TEACHER}))
 
-        # For student profile creation, modification, and document administration: Admin and Coordinator only
+        # Document uploads and document management
+        if (view_name == 'StudentDocumentViewSet' and request.method in ['POST', 'DELETE', 'PUT', 'PATCH']) or action_name == 'upload_document':
+            return True
+
+        # For student profile creation, modification, and status changes: Admin and Coordinator only
         return bool(role_names.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
 
     def has_object_permission(self, request, view, obj):
@@ -68,31 +72,38 @@ class StudentAccessPermission(BasePermission):
                 return True
             if view_name in ['AttendanceViewSet', 'AcademicRecordViewSet'] or action_name in ['mark_attendance', 'add_academic_record']:
                 return True
+            if view_name == 'StudentDocumentViewSet' and request.method in ['POST', 'DELETE']:
+                return True
             return False
 
-        # Non-staff roles (Student and Parent) cannot perform write operations
-        if request.method not in SAFE_METHODS:
-            return False
-
-        # Student viewing own record
+        # Student viewing or managing own record
         if Role.STUDENT in role_names:
             try:
                 student_profile = request.user.student_profile
             except Exception:
                 return False
 
+            is_own_record = False
             if isinstance(obj, Student):
-                return obj.id == student_profile.id or obj.user_id == request.user.id
+                is_own_record = (obj.id == student_profile.id or obj.user_id == request.user.id)
+            elif hasattr(obj, 'student_id') and not isinstance(obj, Student):
+                is_own_record = (obj.student_id == student_profile.id)
+            elif hasattr(obj, 'student'):
+                is_own_record = (obj.student.id == student_profile.id)
 
-            if hasattr(obj, 'student_id') and not isinstance(obj, Student):
-                return obj.student_id == student_profile.id
+            if not is_own_record:
+                return False
 
-            if hasattr(obj, 'student'):
-                return obj.student.id == student_profile.id
+            if request.method in SAFE_METHODS:
+                return True
+
+            # Students can manage documents belonging to their student profile
+            if view_name == 'StudentDocumentViewSet' and request.method in ['DELETE', 'PATCH', 'PUT']:
+                return is_own_record
 
             return False
 
-        # Parent viewing linked child's record
+        # Parent viewing or managing linked child's record
         if Role.PARENT in role_names:
             try:
                 parent_profile = request.user.parent_profile
@@ -100,15 +111,23 @@ class StudentAccessPermission(BasePermission):
                 return False
 
             child_ids = set(parent_profile.students.values_list('id', flat=True))
-
+            is_child_record = False
             if isinstance(obj, Student):
-                return obj.id in child_ids
+                is_child_record = (obj.id in child_ids)
+            elif hasattr(obj, 'student_id') and not isinstance(obj, Student):
+                is_child_record = (obj.student_id in child_ids)
+            elif hasattr(obj, 'student'):
+                is_child_record = (obj.student.id in child_ids)
 
-            if hasattr(obj, 'student_id') and not isinstance(obj, Student):
-                return obj.student_id in child_ids
+            if not is_child_record:
+                return False
 
-            if hasattr(obj, 'student'):
-                return obj.student.id in child_ids
+            if request.method in SAFE_METHODS:
+                return True
+
+            # Parents can delete/manage documents uploaded by themselves for their child
+            if view_name == 'StudentDocumentViewSet' and request.method in ['DELETE', 'PATCH', 'PUT']:
+                return getattr(obj, 'uploaded_by_id', None) == request.user.id
 
             return False
 

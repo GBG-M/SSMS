@@ -67,6 +67,11 @@ export default function StudentSidebar() {
       path: "/student/documents",
       icon: "📄",
     },
+    {
+      name: "Messages & School",
+      path: "/communications",
+      icon: "💬",
+    },
   ];
 
   const handleLogout = async () => {

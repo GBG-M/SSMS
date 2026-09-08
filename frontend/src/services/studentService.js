@@ -57,20 +57,28 @@ export async function getMyStudentProfile() {
 
 export async function getAcademicRecords(studentId = null) {
   const url = studentId
-    ? `${API_BASE}/academic-records/?student_id=${studentId}`
+    ? `${API_BASE}/academic-records/?student=${studentId}`
     : `${API_BASE}/academic-records/`
   const data = await authFetch(url)
   return Array.isArray(data) ? data : data.results || []
 }
 
-export async function getAttendanceRecords(startDate = null, endDate = null) {
+export async function getAttendanceRecords(startDate = null, endDate = null, studentId = null) {
   const params = new URLSearchParams()
   if (startDate) params.append('start_date', startDate)
   if (endDate) params.append('end_date', endDate)
+  if (studentId) params.append('student', studentId)
 
   const queryString = params.toString() ? `?${params.toString()}` : ''
   const data = await authFetch(`${API_BASE}/attendance/${queryString}`)
   return Array.isArray(data) ? data : data.results || []
+}
+
+export async function recordAttendance(payload) {
+  return await authFetch(`${API_BASE}/attendance/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function getDocuments(studentId = null) {
@@ -87,3 +95,10 @@ export async function uploadStudentDocument(formData) {
     body: formData,
   })
 }
+
+export async function deleteStudentDocument(documentId) {
+  return await authFetch(`${API_BASE}/documents/${documentId}/`, {
+    method: 'DELETE',
+  })
+}
+

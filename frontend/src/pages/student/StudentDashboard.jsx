@@ -189,7 +189,7 @@ export default function StudentDashboard() {
                   icon="📊"
                   label="Current GPA"
                   value={currentGpa}
-                  subtext={latestRecord?.term ? `${latestRecord.term} record` : "Cumulative"}
+                  subtext={latestRecord?.term ? `${latestRecord.term} • Rank ${currentRank}` : "Cumulative Standing"}
                   color="blue"
                 />
                 <MetricCard

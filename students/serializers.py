@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from datetime import date
 from .models import Student, AcademicRecord, Attendance, StudentDocument
 from accounts.serializers import UserSerializer, generate_secure_temporary_password
 from accounts.models import Role, ParentProfile
@@ -177,6 +178,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.full_name', read_only=True)
     student_id = serializers.CharField(source='student.student_id', read_only=True)
     recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
+    date = serializers.DateField(required=False, default=date.today)
     
     class Meta:
         model = Attendance
@@ -186,7 +188,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
             'class_period', 'reason', 'recorded_by', 'recorded_by_name',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'date']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class StudentDocumentSerializer(serializers.ModelSerializer):
