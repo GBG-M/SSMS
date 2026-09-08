@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { logout } from '../../services/authService'
+import CommunicationsHub from '../../features/communications/CommunicationsHub'
 
 export default function TeacherDashboard() {
   const navigate = useNavigate()
@@ -495,6 +496,16 @@ export default function TeacherDashboard() {
           >
             <span>📅</span> Weekly Timetable
           </button>
+          <button
+            onClick={() => setActiveTab('communications')}
+            className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-semibold transition whitespace-nowrap ${
+              activeTab === 'communications'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span>💬</span> Parent Inquiries & Notices
+          </button>
         </div>
 
         {/* TAB 1: OVERVIEW */}
@@ -958,6 +969,11 @@ export default function TeacherDashboard() {
               })}
             </div>
           </div>
+        )}
+
+        {/* TAB 6: COMMUNICATIONS & PARENT INQUIRIES */}
+        {activeTab === 'communications' && (
+          <CommunicationsHub userRole="TEACHER" />
         )}
       </main>
 

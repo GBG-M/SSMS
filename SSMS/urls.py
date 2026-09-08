@@ -25,5 +25,6 @@ urlpatterns = [
     path('api/finance/', include('finance.urls', namespace='finance-api')),
     path('api/scheduling/', include('scheduling.urls', namespace='scheduling-api')),
     path('api/notifications/', include('notifications.urls', namespace='notifications-api')),
+    path('api/communications/', include('communications.urls', namespace='communications-api')),
 ]
 

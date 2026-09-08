@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { logout } from '../../services/authService'
+import CommunicationsHub from '../../features/communications/CommunicationsHub'
 
 export default function ParentDashboard() {
   const navigate = useNavigate()
@@ -401,6 +402,16 @@ export default function ParentDashboard() {
               >
                 <span>💳</span> Invoices & Fees ({childInvoices.length})
               </button>
+              <button
+                onClick={() => setActiveTab('communications')}
+                className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-semibold transition whitespace-nowrap ${
+                  activeTab === 'communications'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>💬</span> Inquiries & Messages
+              </button>
             </div>
 
             {/* TAB 1: OVERVIEW & PROFILE */}
@@ -751,6 +762,11 @@ export default function ParentDashboard() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* TAB 6: INQUIRIES & COMMUNICATIONS */}
+            {activeTab === 'communications' && (
+              <CommunicationsHub userRole="PARENT" selectedChild={selectedChild} />
             )}
           </>
         )}
