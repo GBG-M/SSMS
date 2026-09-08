@@ -156,6 +156,10 @@ const roles = (profile.role_names || []).map((r) => String(r).toLowerCase())
 
 if (roles.includes('student')) {
   navigate('/student/dashboard')
+} else if (roles.includes('teacher')) {
+  navigate('/teacher/dashboard')
+} else if (roles.includes('parent')) {
+  navigate('/parent/dashboard')
 } else {
   navigate('/dashboard')
 }

@@ -20,6 +20,12 @@ import Dashboard from "./pages/dashboard/Dashboard";
 // Protected Route wrappers
 import ProtectedRoute from "./routes/ProtectedRoute";
 import StudentRoute from "./routes/StudentRoute";
+import TeacherRoute from "./routes/TeacherRoute";
+import ParentRoute from "./routes/ParentRoute";
+
+// Teacher & Parent Portals
+import TeacherDashboard from "./pages/teacher/TeacherDashboard";
+import ParentDashboard from "./pages/parent/ParentDashboard";
 
 // Student Portal
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -74,6 +80,22 @@ function App() {
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/dashboard"
+          element={
+            <TeacherRoute>
+              <TeacherDashboard />
+            </TeacherRoute>
+          }
+        />
+        <Route
+          path="/parent/dashboard"
+          element={
+            <ParentRoute>
+              <ParentDashboard />
+            </ParentRoute>
           }
         />
         <Route

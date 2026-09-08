@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from accounts.models import User, Role, ParentProfile
 from students.models import Student
+from academics.models import AcademicYear, Subject, ClassSection
 
 
 class AccountAPITests(APITestCase):
@@ -284,3 +285,78 @@ class AdminUserRegistrationTests(APITestCase):
         }
         response = self.client.post(self.users_url, payload, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_parent_profile_contains_children(self):
+        # Create parent with student
+        parent_user = User.objects.create_user(
+            email='mom@example.com',
+            username='mom',
+            password='Password123!'
+        )
+        parent_role, _ = Role.objects.get_or_create(name=Role.PARENT)
+        parent_user.roles.add(parent_role)
+        parent_prof = ParentProfile.objects.create(
+            user=parent_user,
+            phone_number='+15551234567',
+            relationship='Mother'
+        )
+        child = Student.objects.create(
+            student_id='2026-CH-01',
+            first_name='Child',
+            last_name='Smith',
+            date_of_birth='2010-05-15',
+            gender='MALE',
+            email='child@example.com',
+            phone_number='+15551234568',
+            address='123 Elm St',
+            emergency_contact_name='Mom',
+            emergency_contact_phone='+15551234567',
+            current_grade='Grade 9',
+            current_class='9A',
+            academic_year='2025/2026',
+            guardian_name='Mom Smith',
+            guardian_relationship='Mother',
+            guardian_phone='+15551234567',
+            status='ACTIVE'
+        )
+        parent_prof.students.add(child)
+
+        self.client.force_authenticate(user=parent_user)
+        profile_url = reverse('accounts-api:api_user_profile')
+        res = self.client.get(profile_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('children', res.data)
+        self.assertEqual(len(res.data['children']), 1)
+        self.assertEqual(res.data['children'][0]['student_id'], '2026-CH-01')
+        self.assertEqual(res.data['children'][0]['first_name'], 'Child')
+
+    def test_teacher_profile_contains_taught_classes(self):
+        ay = AcademicYear.objects.create(
+            name='2025/2026',
+            start_date='2025-09-01',
+            end_date='2026-06-30',
+            is_active=True
+        )
+        subj = Subject.objects.create(
+            code='MATH101',
+            name='Mathematics 101',
+            department='Science'
+        )
+        section = ClassSection.objects.create(
+            section_code='SEC-MATH-1',
+            name='Math Grade 10A',
+            academic_year=ay,
+            subject=subj,
+            teacher=self.teacher,
+            capacity=35,
+            is_active=True
+        )
+
+        self.client.force_authenticate(user=self.teacher)
+        profile_url = reverse('accounts-api:api_user_profile')
+        res = self.client.get(profile_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('taught_classes_summary', res.data)
+        self.assertEqual(len(res.data['taught_classes_summary']), 1)
+        self.assertEqual(res.data['taught_classes_summary'][0]['section_code'], 'SEC-MATH-1')
+        self.assertEqual(res.data['taught_classes_summary'][0]['subject_name'], 'Mathematics 101')
