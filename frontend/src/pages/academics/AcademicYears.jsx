@@ -5,6 +5,7 @@ import {
   createAcademicYear,
   updateAcademicYear,
   deleteAcademicYear,
+  activateAcademicYear,
 } from '../../services/academicService'
 
 export default function AcademicYears() {
@@ -108,11 +109,16 @@ export default function AcademicYears() {
 
   async function handleToggleActive(year) {
     try {
-      await updateAcademicYear(year.id, {
-        ...year,
-        is_active: !year.is_active,
-      })
-      setSuccess(`Academic year "${year.name}" active status updated.`)
+      if (!year.is_active) {
+        await activateAcademicYear(year.id)
+        setSuccess(`Academic year "${year.name}" is now active. Other calendar years deactivated.`)
+      } else {
+        await updateAcademicYear(year.id, {
+          ...year,
+          is_active: false,
+        })
+        setSuccess(`Academic year "${year.name}" deactivated.`)
+      }
       loadAcademicYears()
       setTimeout(() => setSuccess(''), 4000)
     } catch (err) {

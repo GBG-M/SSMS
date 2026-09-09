@@ -386,18 +386,28 @@ class UserListAPIView(generics.ListCreateAPIView):
     queryset = User.objects.all().prefetch_related('roles')
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        role_param = self.request.query_params.get('role')
+        if role_param:
+            queryset = queryset.filter(roles__name__iexact=role_param.strip())
+        return queryset
     
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            response = self.get_paginated_response(serializer.data)
+            response.data['users'] = serializer.data
+            return response
         
         serializer = self.get_serializer(queryset, many=True)
         return Response({
             'count': queryset.count(),
-            'users': serializer.data
+            'users': serializer.data,
+            'results': serializer.data
         })
 
     def create(self, request, *args, **kwargs):

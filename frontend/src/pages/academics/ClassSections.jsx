@@ -49,7 +49,7 @@ export default function ClassSections() {
         getClassSections(),
         getSubjects(),
         getAcademicYears(),
-        getUsersLookup().catch(() => []),
+        getUsersLookup('teacher').catch(() => []),
       ])
       setSections(sectionsData)
       setSubjects(subjectsData)
@@ -120,7 +120,7 @@ export default function ClassSections() {
     try {
       const payload = {
         ...formData,
-        teacher: formData.teacher ? parseInt(formData.teacher) : null,
+        teacher: formData.teacher || null,
       }
       if (editingSection) {
         await updateClassSection(editingSection.id, payload)
