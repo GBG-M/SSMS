@@ -1,7 +1,11 @@
+from decimal import Decimal
+
 from django.db.models import Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from accounts.models import Role
 from .models import FeeType, FeeStructure, StudentFee, Invoice, Payment
@@ -50,7 +54,7 @@ class StudentFeeViewSet(viewsets.ModelViewSet):
             return queryset.none()
 
         role_names = {role.name for role in user.roles.all()}
-        if Role.ADMIN in role_names:
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return queryset
         if Role.STUDENT in role_names and hasattr(user, 'student_profile'):
             return queryset.filter(student=user.student_profile)
@@ -61,7 +65,7 @@ class StudentFeeViewSet(viewsets.ModelViewSet):
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
-    queryset = Invoice.objects.select_related('student', 'issued_by').all()
+    queryset = Invoice.objects.select_related('student', 'issued_by').prefetch_related('payments').all()
     serializer_class = InvoiceSerializer
     permission_classes = [IsAuthenticated, FinanceAccessPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -77,7 +81,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             return queryset.none()
 
         role_names = {role.name for role in user.roles.all()}
-        if Role.ADMIN in role_names:
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return queryset
         if Role.STUDENT in role_names and hasattr(user, 'student_profile'):
             return queryset.filter(student=user.student_profile)
@@ -85,6 +89,29 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             return queryset.filter(student__in=user.parent_profile.students.all())
 
         return queryset.none()
+
+    def perform_create(self, serializer):
+        if not serializer.validated_data.get('issued_by'):
+            serializer.save(issued_by=self.request.user)
+        else:
+            serializer.save()
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        qs = self.get_queryset()
+        total_invoiced = qs.aggregate(val=Sum('total_amount'))['val'] or Decimal('0.00')
+        total_paid = qs.aggregate(val=Sum('paid_amount'))['val'] or Decimal('0.00')
+        outstanding = max(total_invoiced - total_paid, Decimal('0.00'))
+        overdue_count = qs.filter(status='overdue').count()
+        total_count = qs.count()
+
+        return Response({
+            'total_invoiced': total_invoiced,
+            'total_paid': total_paid,
+            'outstanding_balance': outstanding,
+            'overdue_invoices_count': overdue_count,
+            'total_invoices_count': total_count,
+        })
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -104,7 +131,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return queryset.none()
 
         role_names = {role.name for role in user.roles.all()}
-        if Role.ADMIN in role_names:
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return queryset
         if Role.STUDENT in role_names and hasattr(user, 'student_profile'):
             return queryset.filter(student=user.student_profile)
@@ -112,3 +139,9 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return queryset.filter(student__in=user.parent_profile.students.all())
 
         return queryset.none()
+
+    def perform_create(self, serializer):
+        if not serializer.validated_data.get('received_by'):
+            serializer.save(received_by=self.request.user)
+        else:
+            serializer.save()

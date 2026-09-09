@@ -126,7 +126,9 @@ class StudentFee(models.Model):
         self.amount_due = normalize_decimal(self.amount_due)
         self.amount_paid = normalize_decimal(self.amount_paid)
         due_date = normalize_date(self.due_date)
-        if self.amount_paid >= self.amount_due:
+        if self.status == 'waived':
+            pass
+        elif self.amount_paid >= self.amount_due:
             self.status = 'paid'
         elif self.amount_paid > 0:
             self.status = 'partial'
@@ -190,6 +192,8 @@ class Invoice(models.Model):
         self.tax = normalize_decimal(self.tax)
         self.total_amount = normalize_decimal(self.total_amount)
         self.paid_amount = normalize_decimal(self.paid_amount)
+        if self.total_amount == Decimal('0.00') and (self.subtotal > Decimal('0.00') or self.tax > Decimal('0.00')):
+            self.total_amount = self.subtotal + self.tax
         if not self.invoice_number:
             self.invoice_number = f"INV-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
         self.update_payment_status()
@@ -197,6 +201,15 @@ class Invoice(models.Model):
 
     def __str__(self):
         return f"{self.invoice_number} - {self.student.full_name}"
+
+
+def recalculate_invoice_payments(invoice):
+    if not invoice:
+        return
+    paid_total = invoice.payments.filter(status='completed').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+    invoice.paid_amount = normalize_decimal(paid_total)
+    invoice.update_payment_status()
+    invoice.save(update_fields=['paid_amount', 'status', 'updated_at'])
 
 
 class Payment(models.Model):
@@ -231,12 +244,22 @@ class Payment(models.Model):
 
     def save(self, *args, **kwargs):
         self.amount = normalize_decimal(self.amount)
-        if self.status == 'completed' and self.amount > 0:
-            paid_total = self.invoice.payments.exclude(pk=self.pk).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-            self.invoice.paid_amount = normalize_decimal(paid_total) + self.amount
-            self.invoice.update_payment_status()
-            self.invoice.save(update_fields=['paid_amount', 'status', 'updated_at'])
         super().save(*args, **kwargs)
+        if self.invoice_id:
+            recalculate_invoice_payments(self.invoice)
 
     def __str__(self):
         return f"{self.student.full_name} - {self.amount}"
+
+
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+
+@receiver(post_delete, sender=Payment)
+def payment_post_delete(sender, instance, **kwargs):
+    if instance.invoice_id:
+        try:
+            recalculate_invoice_payments(instance.invoice)
+        except Invoice.DoesNotExist:
+            pass
