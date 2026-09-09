@@ -137,7 +137,7 @@ export async function createClassSchedule(payload) {
 
 export async function updateClassSchedule(id, payload) {
   const response = await fetch(`${API_BASE_URL}/class-schedules/${id}/`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   })
@@ -201,7 +201,7 @@ export async function createExamSchedule(payload) {
 
 export async function updateExamSchedule(id, payload) {
   const response = await fetch(`${API_BASE_URL}/exam-schedules/${id}/`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   })
@@ -265,7 +265,7 @@ export async function createRoom(payload) {
 
 export async function updateRoom(id, payload) {
   const response = await fetch(`${API_BASE_URL}/rooms/${id}/`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   })
@@ -308,7 +308,7 @@ export async function fetchAcademicYearsLookup() {
  * Resolves review comment #1 by removing the '|| true' bug.
  */
 export async function fetchTeachersLookup() {
-  const response = await fetch('/api/accounts/users/', {
+  const response = await fetch('/api/accounts/users/?page_size=100', {
     method: 'GET',
     headers: getAuthHeaders(),
   })

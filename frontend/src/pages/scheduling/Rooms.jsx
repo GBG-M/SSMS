@@ -51,7 +51,7 @@ export default function Rooms() {
       await deleteRoom(id)
       setRooms((prev) => prev.filter((r) => r.id !== id))
     } catch (err) {
-      alert(err.message || 'Failed to delete room.')
+      setError(err.message || 'Failed to delete room.')
     }
   }
 
@@ -71,6 +71,10 @@ export default function Rooms() {
 
     return matchesSearch && matchesStatus && matchesCapacity
   })
+
+  const totalCapacity = rooms.reduce((sum, r) => sum + (parseInt(r.capacity, 10) || 0), 0)
+  const activeCount = rooms.filter((r) => r.is_active).length
+  const scheduledCount = rooms.filter((r) => (r.total_schedules || 0) > 0).length
 
   return (
     <SchedulingLayout
@@ -92,10 +96,31 @@ export default function Rooms() {
       }
     >
       {error && (
-        <div className="mb-4 rounded-xl bg-red-50 p-3.5 text-xs text-red-700 border border-red-200">
-          {error}
+        <div className="mb-4 rounded-xl bg-red-50 p-3.5 text-xs text-red-700 border border-red-200 flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="font-bold text-red-500 hover:text-red-700 ml-4">✕</button>
         </div>
       )}
+
+      {/* Metrics Row */}
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Rooms</span>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{rooms.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active Spaces</span>
+          <p className="mt-1 text-2xl font-bold text-emerald-600">{activeCount}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Capacity</span>
+          <p className="mt-1 text-2xl font-bold text-blue-600">{totalCapacity} seats</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Utilized Rooms</span>
+          <p className="mt-1 text-2xl font-bold text-slate-700">{scheduledCount}</p>
+        </div>
+      </div>
 
       {/* Filter Bar */}
       <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">

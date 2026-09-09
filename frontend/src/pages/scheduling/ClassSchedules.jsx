@@ -83,7 +83,7 @@ export default function ClassSchedules() {
       await deleteClassSchedule(id)
       setSchedules((prev) => prev.filter((s) => s.id !== id))
     } catch (err) {
-      alert(err.message || 'Failed to delete schedule.')
+      setError(err.message || 'Failed to delete schedule.')
     }
   }
 
@@ -104,6 +104,8 @@ export default function ClassSchedules() {
 
   // Extract unique terms
   const terms = Array.from(new Set(schedules.map((s) => s.term).filter(Boolean)))
+  const uniqueRooms = new Set(schedules.map((s) => s.room).filter(Boolean)).size
+  const uniqueTeachers = new Set(schedules.map((s) => s.teacher).filter(Boolean)).size
 
   return (
     <SchedulingLayout
@@ -125,10 +127,31 @@ export default function ClassSchedules() {
       }
     >
       {error && (
-        <div className="mb-4 rounded-xl bg-red-50 p-3.5 text-xs text-red-700 border border-red-200">
-          {error}
+        <div className="mb-4 rounded-xl bg-red-50 p-3.5 text-xs text-red-700 border border-red-200 flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="font-bold text-red-500 hover:text-red-700 ml-4">✕</button>
         </div>
       )}
+
+      {/* Metrics Row */}
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Schedules</span>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{schedules.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active Rooms</span>
+          <p className="mt-1 text-2xl font-bold text-emerald-600">{uniqueRooms}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Teachers Assigned</span>
+          <p className="mt-1 text-2xl font-bold text-blue-600">{uniqueTeachers}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Filtered Count</span>
+          <p className="mt-1 text-2xl font-bold text-slate-700">{filteredSchedules.length}</p>
+        </div>
+      </div>
 
       {/* Filter Bar */}
       <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">

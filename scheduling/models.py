@@ -58,19 +58,23 @@ class ClassSchedule(models.Model):
         if self.start_time and self.end_time and self.start_time >= self.end_time:
             raise ValidationError({'end_time': 'End time must be after start time.'})
 
-        if self.teacher:
+        if self.teacher and getattr(self, 'academic_year_id', None):
             conflicts = ClassSchedule.objects.filter(
                 teacher=self.teacher,
                 day_of_week=self.day_of_week,
+                academic_year=self.academic_year,
+                term=self.term,
             ).exclude(pk=self.pk)
             for obj in conflicts:
                 if self._times_overlap(self.start_time, self.end_time, obj.start_time, obj.end_time):
                     raise ValidationError('This teacher already has a schedule at this time.')
 
-        if self.room:
+        if self.room and getattr(self, 'academic_year_id', None):
             room_conflicts = ClassSchedule.objects.filter(
                 room=self.room,
                 day_of_week=self.day_of_week,
+                academic_year=self.academic_year,
+                term=self.term,
             ).exclude(pk=self.pk)
             for obj in room_conflicts:
                 if self._times_overlap(self.start_time, self.end_time, obj.start_time, obj.end_time):
@@ -115,10 +119,24 @@ class ExamSchedule(models.Model):
     def clean(self):
         if self.start_time and self.end_time and self.start_time >= self.end_time:
             raise ValidationError({'end_time': 'End time must be after start time.'})
-        room_conflicts = ExamSchedule.objects.filter(room=self.room, exam_date=self.exam_date).exclude(pk=self.pk)
-        for obj in room_conflicts:
-            if ClassSchedule._times_overlap(self.start_time, self.end_time, obj.start_time, obj.end_time):
-                raise ValidationError('This room is already reserved for another exam at this time.')
+
+        if self.room and self.exam_date and self.start_time and self.end_time:
+            room_conflicts = ExamSchedule.objects.filter(
+                room=self.room,
+                exam_date=self.exam_date,
+            ).exclude(pk=self.pk)
+            for obj in room_conflicts:
+                if ClassSchedule._times_overlap(self.start_time, self.end_time, obj.start_time, obj.end_time):
+                    raise ValidationError('This room is already reserved for another exam at this time.')
+
+        if self.class_section and self.exam_date and self.start_time and self.end_time:
+            section_conflicts = ExamSchedule.objects.filter(
+                class_section=self.class_section,
+                exam_date=self.exam_date,
+            ).exclude(pk=self.pk)
+            for obj in section_conflicts:
+                if ClassSchedule._times_overlap(self.start_time, self.end_time, obj.start_time, obj.end_time):
+                    raise ValidationError('This class section already has an exam scheduled at this time.')
 
     def save(self, *args, **kwargs):
         self.full_clean()
