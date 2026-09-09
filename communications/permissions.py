@@ -15,8 +15,8 @@ class IsThreadParticipantOrStaff(permissions.BasePermission):
         user = request.user
         role_names = {role.name for role in user.roles.all()}
         
-        # Staff can inspect any thread for safety and supervision
-        if Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
+        # Staff and superusers can inspect any thread for safety and supervision
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return True
 
         from .models import ConversationThread, ThreadMessage
@@ -42,6 +42,10 @@ class CanManageAnnouncements(permissions.BasePermission):
             return True
 
         # Writing / Editing requires Staff or Teacher role
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+
         role_names = {role.name for role in request.user.roles.all()}
         allowed_roles = {Role.ADMIN, Role.ACADEMIC_COORDINATOR, Role.TEACHER}
         return bool(role_names.intersection(allowed_roles))
+

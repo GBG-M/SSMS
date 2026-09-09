@@ -52,9 +52,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
         role_names = {role.name for role in user.roles.all()}
 
-        # 1. Admin & Coordinator see all
-        if Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
+        # 1. Admin, Coordinator, and Staff/Superuser see all
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return queryset
+
 
         # 2. Teacher sees received + sent notices
         if Role.TEACHER in role_names:

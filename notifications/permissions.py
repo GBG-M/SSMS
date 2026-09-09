@@ -17,6 +17,9 @@ class NotificationAccessPermission(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+
         role_names = {role.name for role in request.user.roles.all()}
         return bool(role_names.intersection({
             Role.ADMIN,
@@ -30,11 +33,15 @@ class NotificationAccessPermission(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+
         role_names = {role.name for role in request.user.roles.all()}
 
         # 1. Admin / Coordinator has full access
         if Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return True
+
 
         # 2. Recipient owns the notification
         if obj.recipient_id == request.user.id:

@@ -9,6 +9,10 @@ export default function Dashboard() {
 
   const [profile, setProfile] = useState(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
+  const [studentStats, setStudentStats] = useState(null)
+  const [teacherCount, setTeacherCount] = useState(null)
+  const [classesCount, setClassesCount] = useState(null)
+  const [attendanceStats, setAttendanceStats] = useState(null)
 
   const handleLogout = async () => {
     await logout()
@@ -166,11 +170,6 @@ export default function Dashboard() {
     }
   }
 
-  const [studentStats, setStudentStats] = useState(null)
-  const [teacherCount, setTeacherCount] = useState(null)
-  const [classesCount, setClassesCount] = useState(null)
-  const [attendanceStats, setAttendanceStats] = useState(null)
-
   const displayName =
     profile?.full_name ||
     `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() ||
@@ -285,6 +284,17 @@ export default function Dashboard() {
           </Link>
 
           <Link
+            to="/communications"
+            className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <span className="mr-3">
+              💬
+            </span>
+
+            Communications
+          </Link>
+
+          <Link
             to="/users"
             className="flex items-center rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
           >
@@ -294,6 +304,7 @@ export default function Dashboard() {
 
             Administration
           </Link>
+
 
         </nav>
 
