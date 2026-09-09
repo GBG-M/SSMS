@@ -1,6 +1,8 @@
-from rest_framework import filters, viewsets
-from rest_framework.permissions import IsAuthenticated
+from django.db.models import ProtectedError
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from accounts.models import Role
 from .models import Room, ClassSchedule, ExamSchedule
@@ -16,6 +18,17 @@ class RoomViewSet(viewsets.ModelViewSet):
     filterset_fields = ['building', 'is_active', 'capacity']
     search_fields = ['name', 'room_number', 'building']
     ordering_fields = ['name', 'room_number', 'capacity']
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            message = 'Cannot delete room because it is assigned to existing class or exam schedules.'
+            return Response(
+                {'error': message, 'detail': message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
 
 
 class ClassScheduleViewSet(viewsets.ModelViewSet):
@@ -35,7 +48,7 @@ class ClassScheduleViewSet(viewsets.ModelViewSet):
             return queryset.none()
 
         role_names = {role.name for role in user.roles.all()}
-        if Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return queryset
 
         if Role.TEACHER in role_names:
@@ -46,14 +59,14 @@ class ClassScheduleViewSet(viewsets.ModelViewSet):
                 student = user.student_profile
             except Exception:
                 return queryset.none()
-            return queryset.filter(class_section__enrollments__student=student, class_section__enrollments__status='ACTIVE')
+            return queryset.filter(class_section__enrollments__student=student, class_section__enrollments__status='ACTIVE').distinct()
 
         if Role.PARENT in role_names:
             try:
                 parent_profile = user.parent_profile
             except Exception:
                 return queryset.none()
-            return queryset.filter(class_section__enrollments__student__in=parent_profile.students.all())
+            return queryset.filter(class_section__enrollments__student__in=parent_profile.students.all()).distinct()
 
         return queryset.none()
 
@@ -75,7 +88,7 @@ class ExamScheduleViewSet(viewsets.ModelViewSet):
             return queryset.none()
 
         role_names = {role.name for role in user.roles.all()}
-        if Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return queryset
 
         if Role.TEACHER in role_names:
@@ -86,13 +99,13 @@ class ExamScheduleViewSet(viewsets.ModelViewSet):
                 student = user.student_profile
             except Exception:
                 return queryset.none()
-            return queryset.filter(class_section__enrollments__student=student, class_section__enrollments__status='ACTIVE')
+            return queryset.filter(class_section__enrollments__student=student, class_section__enrollments__status='ACTIVE').distinct()
 
         if Role.PARENT in role_names:
             try:
                 parent_profile = user.parent_profile
             except Exception:
                 return queryset.none()
-            return queryset.filter(class_section__enrollments__student__in=parent_profile.students.all())
+            return queryset.filter(class_section__enrollments__student__in=parent_profile.students.all()).distinct()
 
         return queryset.none()

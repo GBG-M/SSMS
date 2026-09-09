@@ -53,6 +53,9 @@ class FinanceAccessPermission(BasePermission):
                 Role.PARENT,
             }))
 
+        if Role.ACADEMIC_COORDINATOR in role_names:
+            return True
+
         if Role.STUDENT in role_names:
             try:
                 current_student = request.user.student_profile

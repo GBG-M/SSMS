@@ -400,6 +400,14 @@ function App() {
           }
         />
         <Route
+          path="/finance/fees"
+          element={
+            <ProtectedRoute>
+              <StudentFees />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/finance/invoices"
           element={
             <ProtectedRoute>
