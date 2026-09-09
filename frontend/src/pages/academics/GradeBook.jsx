@@ -530,7 +530,19 @@ export default function GradeBook() {
                 </label>
                 <select
                   value={formData.assessment}
-                  onChange={(e) => setFormData({ ...formData, assessment: e.target.value })}
+                  onChange={(e) => {
+                    const newAssId = e.target.value
+                    const newAss = assessments.find((a) => String(a.id) === String(newAssId))
+                    const validEnrs = newAss
+                      ? enrollments.filter((enr) => String(enr.class_section) === String(newAss.class_section))
+                      : enrollments
+                    const stillValid = validEnrs.some((enr) => String(enr.id) === String(formData.enrollment))
+                    setFormData((prev) => ({
+                      ...prev,
+                      assessment: newAssId,
+                      enrollment: stillValid ? prev.enrollment : (validEnrs[0]?.id || ''),
+                    }))
+                  }}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >

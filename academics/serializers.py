@@ -76,10 +76,26 @@ class GradeRecordSerializer(serializers.ModelSerializer):
     assessment_type = serializers.CharField(source='assessment.assessment_type', read_only=True)
     max_marks = serializers.IntegerField(source='assessment.max_marks', read_only=True)
     weight = serializers.IntegerField(source='assessment.weight', read_only=True)
+    percentage = serializers.SerializerMethodField()
 
     class Meta:
         model = GradeRecord
         fields = '__all__'
+
+    def get_percentage(self, obj):
+        if obj.score is not None and getattr(obj, 'assessment', None) and obj.assessment.max_marks > 0:
+            return round((float(obj.score) / float(obj.assessment.max_marks)) * 100.0, 1)
+        return None
+
+    def validate(self, attrs):
+        enrollment = attrs.get('enrollment') or (self.instance.enrollment if self.instance else None)
+        assessment = attrs.get('assessment') or (self.instance.assessment if self.instance else None)
+        if enrollment and assessment:
+            if enrollment.class_section_id != assessment.class_section_id:
+                raise serializers.ValidationError({
+                    'enrollment': 'Selected student enrollment must belong to the same class section as the assessment.'
+                })
+        return attrs
 
 
 class AcademicSummarySerializer(serializers.ModelSerializer):

@@ -27,6 +27,7 @@ urlpatterns = [
     
     # Password management
     path('force-password-reset/', ForcePasswordResetAPIView.as_view(), name='api_force_password_reset'),
+    path('reset-password/', ForcePasswordResetAPIView.as_view(), name='api_reset_password'),
     path('forgot-password/', ForgotPasswordAPIView.as_view(), name='api_forgot_password'),
     path('change-password/', ChangePasswordAPIView.as_view(), name='api_change_password'),
     

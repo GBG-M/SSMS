@@ -236,4 +236,107 @@ export async function registerUser(registrationData) {
 
   return data
 }
+
+export async function changePassword(oldPassword, newPassword, confirmPassword) {
+  const token = getToken()
+  if (!token) throw new Error('Not authenticated.')
+
+  const response = await fetch(`${API_BASE_URL}/change-password/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Token ${token}`,
+    },
+    body: JSON.stringify({
+      old_password: oldPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const errorMsg =
+      data.old_password?.[0] ||
+      data.new_password?.[0] ||
+      data.confirm_password?.[0] ||
+      data.detail ||
+      data.error ||
+      'Failed to change password.'
+    throw new Error(errorMsg)
+  }
+  return data
+}
+
+export async function forgotPassword(email) {
+  const response = await fetch(`${API_BASE_URL}/forgot-password/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || data.detail || 'Failed to process password reset request.')
+  }
+  return data
+}
+
+export async function forcePasswordReset(identifier, newPassword, confirmPassword) {
+  const response = await fetch(`${API_BASE_URL}/force-password-reset/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      pre_auth_user_id: identifier,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const errorMsg =
+      data.error ||
+      data.detail ||
+      (Array.isArray(data.new_password) ? data.new_password.join(' ') : data.new_password) ||
+      (Array.isArray(data.confirm_password) ? data.confirm_password.join(' ') : data.confirm_password) ||
+      'Password reset failed.'
+    throw new Error(errorMsg)
+  }
+
+  if (data.token) {
+    localStorage.setItem('authToken', data.token)
+    localStorage.setItem('authType', 'Token')
+    if (data.email) localStorage.setItem('userEmail', data.email)
+    localStorage.removeItem('preAuthUserId')
+  }
+
+  return data
+}
+
+export async function updateProfile(profileData) {
+  const token = getToken()
+  if (!token) throw new Error('Not authenticated.')
+
+  const response = await fetch(`${API_BASE_URL}/profile/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Token ${token}`,
+    },
+    body: JSON.stringify(profileData),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.detail || data.error || 'Failed to update profile.')
+  }
+
+  const updatedUser = data.user || data
+  localStorage.setItem('userProfile', JSON.stringify(updatedUser))
+  return updatedUser
+}
 

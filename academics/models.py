@@ -27,6 +27,10 @@ class AcademicYear(models.Model):
         if self.is_active:
             AcademicYear.objects.exclude(pk=self.pk).filter(is_active=True).update(is_active=False)
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
@@ -184,6 +188,13 @@ class GradeRecord(models.Model):
                 raise ValidationError(
                     {'score': f'Score must be between 0 and {self.assessment.max_marks}.'}
                 )
+        if getattr(self, 'enrollment_id', None) and getattr(self, 'assessment_id', None):
+            enrollment = getattr(self, 'enrollment', None)
+            assessment = getattr(self, 'assessment', None)
+            if enrollment and assessment and enrollment.class_section_id != assessment.class_section_id:
+                raise ValidationError(
+                    {'enrollment': 'Student enrollment must belong to the same class section as the assessment.'}
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -194,13 +205,15 @@ class GradeRecord(models.Model):
     def _calculate_grade(self):
         if self.score is None:
             return ''
-        if self.score >= 90:
+        max_marks = float(self.assessment.max_marks) if (getattr(self, 'assessment', None) and self.assessment.max_marks > 0) else 100.0
+        percentage = (float(self.score) / max_marks) * 100.0
+        if percentage >= 90:
             return 'A'
-        if self.score >= 80:
+        if percentage >= 80:
             return 'B'
-        if self.score >= 70:
+        if percentage >= 70:
             return 'C'
-        if self.score >= 60:
+        if percentage >= 60:
             return 'D'
         return 'F'
 

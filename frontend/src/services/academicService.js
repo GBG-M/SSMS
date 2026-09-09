@@ -60,6 +60,7 @@ function toQueryString(params = {}) {
 function unwrapList(data) {
   if (Array.isArray(data)) return data
   if (data && Array.isArray(data.results)) return data.results
+  if (data && Array.isArray(data.users)) return data.users
   return []
 }
 
@@ -84,6 +85,11 @@ export async function updateAcademicYear(id, data) {
 export async function deleteAcademicYear(id) {
   return await authFetch(`${API_BASE_URL}/academic-years/${id}/`, {
     method: 'DELETE',
+  })
+}
+export async function activateAcademicYear(id) {
+  return await authFetch(`${API_BASE_URL}/academic-years/${id}/activate/`, {
+    method: 'POST',
   })
 }
 
@@ -266,9 +272,19 @@ export async function getStudentsLookup() {
 }
 
 export async function getUsersLookup(role = null) {
-  const params = role ? `?role=${role}` : ''
+  const params = role ? `?role=${encodeURIComponent(role)}` : ''
   const data = await authFetch(`/api/accounts/users/${params}`)
   return unwrapList(data)
+}
+
+export async function recalculateAcademicSummary(studentId, academicYearId) {
+  return await authFetch(`${API_BASE_URL}/academic-summaries/recalculate/`, {
+    method: 'POST',
+    body: JSON.stringify({
+      student: studentId,
+      academic_year: academicYearId,
+    }),
+  })
 }
 
 // ================= BACKWARD COMPATIBILITY ALIASES =================

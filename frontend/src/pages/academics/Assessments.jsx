@@ -134,12 +134,12 @@ export default function Assessments() {
       }
 
       const payload = {
-        class_section: parseInt(formData.class_section),
+        class_section: parseInt(formData.class_section, 10),
         name: formData.name.trim(),
         assessment_type: formData.assessment_type,
         due_date: formData.due_date || null,
-        max_marks: parseFloat(formData.max_marks),
-        weight: parseFloat(formData.weight),
+        max_marks: parseInt(formData.max_marks, 10),
+        weight: parseInt(formData.weight, 10),
         description: formData.description.trim(),
       }
 

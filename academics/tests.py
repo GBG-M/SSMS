@@ -252,3 +252,66 @@ class AcademicsPermissionTests(TestCase):
         response = view.students(None, pk=section.pk)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['full_name'], 'Tom Sawyer')
+
+    def test_percentage_based_grading_on_20_point_scale(self):
+        """Verify that a 20-mark quiz uses percentage (18/20 = 90% = A, 11/20 = 55% = F)."""
+        year = AcademicYear.objects.create(name='2030/2031', start_date='2030-09-01', end_date='2031-06-30')
+        subject = Subject.objects.create(code='CHEM101', name='Chemistry')
+        section = ClassSection.objects.create(
+            section_code='CHEM1A', name='Chemistry 1A', academic_year=year, subject=subject
+        )
+        student = Student.objects.create(
+            student_id='STU999002', first_name='Leo', last_name='Tolstoy',
+            date_of_birth='2010-01-01', gender='MALE', emergency_contact_name='Guardian',
+            emergency_contact_phone='0911111111', current_grade='10', academic_year='2030/2031',
+            guardian_name='Guardian', guardian_relationship='Father', guardian_phone='0911111111'
+        )
+        enrollment = Enrollment.objects.create(student=student, class_section=section, status='ACTIVE')
+        quiz = Assessment.objects.create(
+            class_section=section, name='Pop Quiz 1', assessment_type='QUIZ', max_marks=20, weight=10
+        )
+        # 18 out of 20 = 90.0% -> Must be grade A
+        record_a = GradeRecord.objects.create(enrollment=enrollment, assessment=quiz, score=18)
+        self.assertEqual(record_a.grade, 'A')
+
+        # 11 out of 20 = 55.0% -> Must be grade F
+        record_f = GradeRecord(enrollment=enrollment, assessment=quiz, score=11)
+        self.assertEqual(record_f._calculate_grade(), 'F')
+
+    def test_cross_section_enrollment_rejected(self):
+        """Ensure an enrollment from Section A cannot be graded with an assessment from Section B."""
+        year = AcademicYear.objects.create(name='2032/2033', start_date='2032-09-01', end_date='2033-06-30')
+        subject = Subject.objects.create(code='ENG101', name='English')
+        section_a = ClassSection.objects.create(section_code='ENGA', name='English A', academic_year=year, subject=subject)
+        section_b = ClassSection.objects.create(section_code='ENGB', name='English B', academic_year=year, subject=subject)
+
+        student = Student.objects.create(
+            student_id='STU999003', first_name='Mark', last_name='Twain',
+            date_of_birth='2010-01-01', gender='MALE', emergency_contact_name='Guardian',
+            emergency_contact_phone='0911111111', current_grade='9', academic_year='2032/2033',
+            guardian_name='Guardian', guardian_relationship='Father', guardian_phone='0911111111'
+        )
+        enrollment_a = Enrollment.objects.create(student=student, class_section=section_a, status='ACTIVE')
+        assessment_b = Assessment.objects.create(class_section=section_b, name='Midterm B', max_marks=100)
+
+        with self.assertRaises(Exception):
+            GradeRecord.objects.create(enrollment=enrollment_a, assessment=assessment_b, score=85)
+
+    def test_academic_year_activate_action(self):
+        """Ensure activating an academic year deactivates others."""
+        from .views import AcademicYearViewSet
+        from rest_framework import status
+        year_1 = AcademicYear.objects.create(name='2040/2041', start_date='2040-09-01', end_date='2041-06-30', is_active=True)
+        year_2 = AcademicYear.objects.create(name='2041/2042', start_date='2041-09-01', end_date='2042-06-30', is_active=False)
+
+        view = AcademicYearViewSet()
+        view.kwargs = {'pk': year_2.pk}
+        view.get_object = lambda: year_2
+        view.get_serializer = lambda instance: type('Obj', (), {'data': {'id': instance.id, 'is_active': instance.is_active}})()
+
+        response = view.activate(None, pk=year_2.pk)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        year_1.refresh_from_db()
+        year_2.refresh_from_db()
+        self.assertFalse(year_1.is_active)
+        self.assertTrue(year_2.is_active)

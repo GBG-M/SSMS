@@ -9,7 +9,7 @@ import ForcePasswordReset from "./pages/auth/ForcePasswordReset";
 import ChangePassword from "./pages/auth/ChangePassword";
 
 // Accounts & Admin
-import Profile from "./pages/Profile/Profile";
+import Profile from "./pages/profile/Profile";
 import Users from "./pages/admin/Users";
 import UserDetails from "./pages/admin/UserDetails";
 import EditUser from "./pages/admin/EditUser";
