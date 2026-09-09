@@ -481,3 +481,19 @@ class NotificationSignalTriggersTests(APITestCase):
         self.assertFalse(Notification.objects.filter(id=n1.id).exists())
         self.assertFalse(Notification.objects.filter(id=n2.id).exists())
 
+    def test_staff_user_can_access_all_notifications(self):
+        staff_only = User.objects.create_user(
+            email='staff.only@ssms.test',
+            username='staff_only',
+            password='Password123!',
+            is_staff=True
+        )
+        create_notification(recipient=self.student_user, title='Notice For Student', message='Hello Student')
+        self.client.force_authenticate(user=staff_only)
+        list_url = reverse('notifications:notification-list')
+        res = self.client.get(list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        results = res.data.get('results', res.data)
+        self.assertGreaterEqual(len(results), 1)
+
+

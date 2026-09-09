@@ -55,9 +55,10 @@ class ConversationThreadViewSet(viewsets.ModelViewSet):
 
         role_names = {role.name for role in user.roles.all()}
 
-        # 1. Staff can view all institutional conversations
-        if Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
+        # 1. Staff and Superusers can view all institutional conversations
+        if user.is_staff or user.is_superuser or Role.ADMIN in role_names or Role.ACADEMIC_COORDINATOR in role_names:
             return queryset
+
 
         # 2. Others can only view threads they participate in
         return queryset.filter(participants=user)

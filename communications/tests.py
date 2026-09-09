@@ -256,3 +256,39 @@ class CommunicationsTests(APITestCase):
         res_parent = self.client.get(url)
         self.assertEqual(res_parent.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res_parent.data.get('results', res_parent.data)), 1)
+
+    def test_staff_user_can_access_threads_and_announcements(self):
+        staff_only = User.objects.create_user(
+            email='comm.staff@ssms.test',
+            username='comm_staff',
+            password='Password123!',
+            is_staff=True
+        )
+        thread = ConversationThread.objects.create(
+            student=self.student,
+            subject='Institutional Inquiry',
+            category='ACADEMIC',
+            status='OPEN',
+            created_by=self.parent_user
+        )
+        thread.participants.add(self.parent_user, self.teacher_math)
+
+
+        self.client.force_authenticate(user=staff_only)
+        threads_url = reverse('communications:thread-list')
+        res = self.client.get(threads_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        results = res.data.get('results', res.data)
+        self.assertGreaterEqual(len(results), 1)
+
+        # Staff can publish announcements
+        ann_url = reverse('communications:announcement-list')
+        ann_res = self.client.post(ann_url, {
+            'title': 'Staff Notice',
+            'content': 'Staff meeting at 3 PM',
+            'target_audience': 'ALL',
+            'priority': 'NORMAL'
+        }, format='json')
+        self.assertEqual(ann_res.status_code, status.HTTP_201_CREATED)
+
+
