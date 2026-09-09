@@ -57,6 +57,27 @@ export default function Dashboard() {
       }
 
       setProfile(data)
+      localStorage.setItem('userProfile', JSON.stringify(data))
+
+      // If user is a student, teacher, or parent without administrative staff privileges,
+      // redirect them to their dedicated dashboard portal.
+      const roles = (data.role_names || []).map(r => String(r).toLowerCase())
+      const isStaffOrAdmin = Boolean(data.is_staff || data.is_superuser || roles.includes('admin') || roles.includes('academic_coordinator'))
+
+      if (!isStaffOrAdmin) {
+        if (roles.includes('student')) {
+          navigate('/student/dashboard', { replace: true })
+          return
+        }
+        if (roles.includes('teacher')) {
+          navigate('/teacher/dashboard', { replace: true })
+          return
+        }
+        if (roles.includes('parent')) {
+          navigate('/parent/dashboard', { replace: true })
+          return
+        }
+      }
 
       // Fetch live dashboard statistics across modules
       try {

@@ -124,9 +124,10 @@ export default function Profile() {
         )
       }
 
-      setProfile(data.user || data)
-
       const updatedUser = data.user || data
+
+      setProfile(updatedUser)
+      localStorage.setItem('userProfile', JSON.stringify(updatedUser))
 
       setFormData({
         email: updatedUser.email || '',
@@ -175,10 +176,16 @@ export default function Profile() {
           </div>
 
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => {
+              const roles = (profile?.role_names || []).map(r => String(r).toLowerCase())
+              if (roles.includes('student')) navigate('/student/dashboard')
+              else if (roles.includes('teacher')) navigate('/teacher/dashboard')
+              else if (roles.includes('parent')) navigate('/parent/dashboard')
+              else navigate('/dashboard')
+            }}
             className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
           >
-            ← Dashboard
+            ← Back to Portal
           </button>
 
         </div>
@@ -236,9 +243,68 @@ export default function Profile() {
                 {formData.email}
               </p>
 
-              <div className="mt-5 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700">
-                Account
+              {/* Role Badges */}
+              <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+                {profile?.role_names && profile.role_names.length > 0 ? (
+                  profile.role_names.map((r) => {
+                    const rLower = String(r).toLowerCase()
+                    let color = 'bg-blue-50 text-blue-700 border-blue-200'
+                    let icon = '👤'
+                    if (rLower === 'admin') {
+                      color = 'bg-purple-50 text-purple-700 border-purple-200'
+                      icon = '👑'
+                    } else if (rLower === 'teacher') {
+                      color = 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      icon = '👨‍🏫'
+                    } else if (rLower === 'student') {
+                      color = 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                      icon = '👨‍🎓'
+                    } else if (rLower === 'parent') {
+                      color = 'bg-amber-50 text-amber-700 border-amber-200'
+                      icon = '👨‍👩‍👧'
+                    } else if (rLower === 'academic_coordinator') {
+                      color = 'bg-cyan-50 text-cyan-700 border-cyan-200'
+                      icon = '🏛️'
+                    }
+                    return (
+                      <span
+                        key={r}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${color}`}
+                      >
+                        <span>{icon}</span>
+                        <span>{r.replaceAll('_', ' ').toUpperCase()}</span>
+                      </span>
+                    )
+                  })
+                ) : (
+                  <div className="mt-4 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700">
+                    Account
+                  </div>
+                )}
               </div>
+
+              {/* Student Metadata */}
+              {profile?.student_profile && (
+                <div className="mt-5 w-full rounded-xl bg-slate-50 p-3 text-left text-xs text-slate-600 border border-slate-200">
+                  <div className="font-bold text-slate-800 mb-1">Student Record</div>
+                  <div>ID: <span className="font-mono font-bold text-indigo-600">{profile.student_profile.student_id}</span></div>
+                  {profile.student_profile.current_grade && (
+                    <div>Grade: {profile.student_profile.current_grade} ({profile.student_profile.current_class || 'General'})</div>
+                  )}
+                </div>
+              )}
+
+              {/* Linked Children */}
+              {profile?.children && profile.children.length > 0 && (
+                <div className="mt-5 w-full rounded-xl bg-slate-50 p-3 text-left text-xs text-slate-600 border border-slate-200">
+                  <div className="font-bold text-slate-800 mb-1">Linked Children ({profile.children.length})</div>
+                  {profile.children.map((c) => (
+                    <div key={c.id} className="text-slate-700 py-0.5 truncate">
+                      🎓 {c.full_name} ({c.student_id})
+                    </div>
+                  ))}
+                </div>
+              )}
 
             </div>
 

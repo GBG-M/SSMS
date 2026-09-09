@@ -200,8 +200,10 @@ def hash_user_password_if_needed(sender, instance, **kwargs):
         try:
             old_instance = User.objects.get(pk=instance.pk)
             if instance.password != old_instance.password:
-                # Password has been changed, ensure it's hashed
-                if not instance.password.startswith('pbkdf2_'):
+                from django.contrib.auth.hashers import identify_hasher
+                try:
+                    identify_hasher(instance.password)
+                except ValueError:
                     instance.set_password(instance.password)
         except User.DoesNotExist:
             pass

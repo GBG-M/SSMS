@@ -18,20 +18,21 @@ def generate_secure_temporary_password(length=12):
 
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user login
+    Serializer for user login supporting email or username
     """
-    email = serializers.EmailField(required=True)
+    email = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
     
     def validate(self, attrs):
-        email = attrs.get('email')
-        password = attrs.get('password')
+        email_or_username = attrs.get('email', '').strip()
+        password = attrs.get('password', '')
         
-        if not email:
-            raise serializers.ValidationError({"email": "Email is required."})
+        if not email_or_username:
+            raise serializers.ValidationError({"email": "Email or username is required."})
         if not password:
             raise serializers.ValidationError({"password": "Password is required."})
         
+        attrs['email'] = email_or_username.lower() if '@' in email_or_username else email_or_username
         return attrs
 
 
@@ -246,40 +247,66 @@ class UserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
-        role_names = self.initial_data.get('role_names') or self.initial_data.get('roles')
-        if role_names is not None and isinstance(role_names, list):
-            instance.roles.clear()
-            for r_name in role_names:
-                role_obj, _ = Role.objects.get_or_create(name=str(r_name).lower())
-                instance.roles.add(role_obj)
-        if password:
+        request = self.context.get('request')
+        is_admin_or_staff = (
+            request and (request.user.is_staff or request.user.is_superuser)
+        ) if request else True
+
+        # If user is not staff, disallow altering privileged fields
+        if not is_admin_or_staff:
+            validated_data.pop('is_staff', None)
+            validated_data.pop('is_superuser', None)
+            validated_data.pop('is_active', None)
+            validated_data.pop('must_reset_password', None)
+            validated_data.pop('requires_totp', None)
+            validated_data.pop('totp_enabled', None)
+        else:
+            role_names = self.initial_data.get('role_names') or self.initial_data.get('roles')
+            if role_names is not None and isinstance(role_names, list):
+                instance.roles.clear()
+                cleaned_roles = []
+                for r_name in role_names:
+                    role_obj, _ = Role.objects.get_or_create(name=str(r_name).lower())
+                    instance.roles.add(role_obj)
+                    cleaned_roles.append(role_obj.name)
+
+                # Sync is_staff flag if administrative or faculty role
+                staff_roles = ['admin', 'academic_coordinator', 'teacher']
+                if not instance.is_superuser:
+                    instance.is_staff = any(r in staff_roles for r in cleaned_roles)
+
+                if 'parent' in cleaned_roles:
+                    ParentProfile.objects.get_or_create(user=instance)
+
+        if password and is_admin_or_staff:
             instance.set_password(password)
 
-        # Support updating linked students for parents
-        student_ids = self.initial_data.get('student_ids') or self.initial_data.get('children_ids')
-        if student_ids is not None and isinstance(student_ids, list):
-            parent_profile, _ = ParentProfile.objects.get_or_create(user=instance)
-            from students.models import Student
-            from django.db.models import Q
-            import uuid
-            
-            pks = []
-            codes = []
-            for s in student_ids:
-                s_str = str(s).strip()
-                if s_str.isdigit():
-                    pks.append(int(s_str))
-                else:
-                    codes.append(s_str)
-                    try:
-                        pks.append(uuid.UUID(s_str))
-                    except (ValueError, AttributeError):
-                        pass
+        # Support updating linked students for parents (Admin only)
+        if is_admin_or_staff:
+            student_ids = self.initial_data.get('student_ids') or self.initial_data.get('children_ids')
+            if student_ids is not None and isinstance(student_ids, list):
+                parent_profile, _ = ParentProfile.objects.get_or_create(user=instance)
+                from students.models import Student
+                from django.db.models import Q
+                import uuid
+                
+                pks = []
+                codes = []
+                for s in student_ids:
+                    s_str = str(s).strip()
+                    if s_str.isdigit():
+                        pks.append(int(s_str))
+                    else:
+                        codes.append(s_str)
+                        try:
+                            pks.append(uuid.UUID(s_str))
+                        except (ValueError, AttributeError):
+                            pass
 
-            matched_students = Student.objects.filter(
-                Q(id__in=pks) | Q(student_id__in=codes)
-            )
-            parent_profile.students.set(matched_students)
+                matched_students = Student.objects.filter(
+                    Q(id__in=pks) | Q(student_id__in=codes)
+                )
+                parent_profile.students.set(matched_students)
 
         return super().update(instance, validated_data)
 

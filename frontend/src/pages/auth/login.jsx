@@ -151,6 +151,9 @@ if (!profileResponse.ok) {
   )
 }
 
+// Store complete user profile in local storage for instant client access
+localStorage.setItem('userProfile', JSON.stringify(profile))
+
 // Redirect based on role
 const roles = (profile.role_names || []).map((r) => String(r).toLowerCase())
 
@@ -235,20 +238,20 @@ return
             className="space-y-5"
           >
 
-            {/* Email */}
+            {/* Email or Username */}
             <div>
               <label
                 htmlFor="email"
                 className="mb-2 block text-sm font-semibold text-slate-700"
               >
-                Email address
+                Email or Username
               </label>
 
               <input
                 id="email"
                 name="email"
-                type="email"
-                placeholder="you@example.com"
+                type="text"
+                placeholder="you@example.com or username"
                 value={formData.email}
                 onChange={handleChange}
                 required

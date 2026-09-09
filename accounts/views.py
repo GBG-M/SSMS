@@ -13,7 +13,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from .models import User, Role, PasswordResetRequest, LoginHistory
+from .models import User, Role, ParentProfile, PasswordResetRequest, LoginHistory
 from .serializers import (
     LoginSerializer, 
     PasswordResetSerializer, 
@@ -94,12 +94,25 @@ class LoginAPIView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        email = serializer.validated_data.get('email')
+        raw_identifier = serializer.validated_data.get('email', '').strip()
         password = serializer.validated_data.get('password')
         client_ip = get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
         
-        user = authenticate(request, username=email, password=password)
+        # 1. Try authenticating with direct identifier
+        user = authenticate(request, username=raw_identifier, password=password)
+
+        # 2. If not authenticated and input looks like a username (no '@'), find user by username
+        if user is None:
+            user_by_uname = User.objects.filter(username__iexact=raw_identifier).first()
+            if user_by_uname:
+                user = authenticate(request, username=user_by_uname.email, password=password)
+
+        # 3. If still not authenticated and input has '@', search user by case-insensitive email
+        if user is None and '@' in raw_identifier:
+            user_by_email = User.objects.filter(email__iexact=raw_identifier).first()
+            if user_by_email and user_by_email.email != raw_identifier:
+                user = authenticate(request, username=user_by_email.email, password=password)
         
         if user is not None:
             # Record successful login history
@@ -136,17 +149,24 @@ class LoginAPIView(APIView):
 
             # Issue auth token
             token, _ = Token.objects.get_or_create(user=user)
+            role_names = [r.name for r in user.roles.all()]
             
             return Response({
                 'message': 'Login successful.',
                 'token': token.key,
                 'email': user.email,
-                'user_id': user.id,
-                'username': user.username if hasattr(user, 'username') else email,
+                'user_id': str(user.id),
+                'username': user.username if hasattr(user, 'username') else user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role_names': role_names,
             }, status=status.HTTP_200_OK)
         
         # Record failed login if user exists
-        existing_user = User.objects.filter(email=email).first()
+        existing_user = (
+            User.objects.filter(email__iexact=raw_identifier).first() or
+            User.objects.filter(username__iexact=raw_identifier).first()
+        )
         if existing_user:
             LoginHistory.objects.create(
                 user=existing_user,
@@ -155,7 +175,7 @@ class LoginAPIView(APIView):
                 is_successful=False
             )
         
-        return Response({'error': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'error': 'Invalid email/username or password.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class LogoutAPIView(APIView):
@@ -205,6 +225,13 @@ class ForcePasswordResetAPIView(APIView):
             except User.DoesNotExist:
                 user = None
 
+        reset_req = None
+        if not user:
+            # Check if user_id is a password reset token
+            reset_req = PasswordResetRequest.objects.filter(token=user_id, status='pending').select_related('user').first()
+            if reset_req and not reset_req.is_expired:
+                user = reset_req.user
+
         if not user:
             # Fallback: check if valid user UUID or email directly
             try:
@@ -215,13 +242,17 @@ class ForcePasswordResetAPIView(APIView):
                 except Exception:
                     user = None
 
+        if user and not reset_req:
+            # Check if there is a pending reset request for this user
+            reset_req = PasswordResetRequest.objects.filter(user=user, status='pending').order_by('-created_at').first()
+
         if not user:
             return Response(
                 {'error': 'Account not found or session expired. Please verify your email or log in.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not user.must_reset_password:
+        if not user.must_reset_password and (not reset_req or reset_req.is_expired):
             return Response(
                 {'error': 'Password reset is not pending for this account. Please log in with your active password.'}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -232,8 +263,14 @@ class ForcePasswordResetAPIView(APIView):
             user.must_reset_password = False
             user.save()
             
+            if reset_req:
+                reset_req.status = 'completed'
+                reset_req.completed_at = timezone.now()
+                reset_req.save(update_fields=['status', 'completed_at'])
+
             # Clear pre-auth cache
             cache.delete(f'pre_auth_user_{user_id}')
+            cache.delete(f'pre_auth_user_{user.id}')
             
             # Authenticate and issue token
             token, _ = Token.objects.get_or_create(user=user)
@@ -392,6 +429,24 @@ class UserListAPIView(generics.ListCreateAPIView):
         role_param = self.request.query_params.get('role')
         if role_param:
             queryset = queryset.filter(roles__name__iexact=role_param.strip())
+
+        status_param = self.request.query_params.get('status')
+        if status_param == 'active':
+            queryset = queryset.filter(is_active=True)
+        elif status_param == 'inactive':
+            queryset = queryset.filter(is_active=False)
+
+        search_param = self.request.query_params.get('search')
+        if search_param:
+            q = search_param.strip()
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(email__icontains=q) |
+                Q(username__icontains=q) |
+                Q(first_name__icontains=q) |
+                Q(last_name__icontains=q)
+            )
+
         return queryset
     
     def list(self, request, *args, **kwargs):
@@ -437,6 +492,13 @@ class UserDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                 {'error': 'You cannot delete your own account.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if instance.is_superuser:
+            remaining = User.objects.filter(is_superuser=True, is_active=True).exclude(pk=instance.pk).count()
+            if remaining == 0:
+                return Response(
+                    {'error': 'Cannot delete the only remaining active superuser.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         self.perform_destroy(instance)
         return Response(
             {'message': f'User {instance.email} deleted successfully.'},
@@ -472,14 +534,25 @@ class UserRoleUpdateAPIView(APIView):
         role_names = serializer.validated_data['role_names']
         
         user.roles.clear()
+        cleaned_roles = []
         for r_name in role_names:
             role_obj, _ = Role.objects.get_or_create(name=r_name.lower())
             user.roles.add(role_obj)
+            cleaned_roles.append(role_obj.name)
+
+        staff_roles = ['admin', 'academic_coordinator', 'teacher']
+        if not user.is_superuser:
+            user.is_staff = any(r in staff_roles for r in cleaned_roles)
+
+        if 'parent' in cleaned_roles:
+            ParentProfile.objects.get_or_create(user=user)
+
         user.save()
 
         return Response({
             'message': f'Roles updated successfully for {user.email}.',
-            'role_names': [r.name for r in user.roles.all()]
+            'role_names': [r.name for r in user.roles.all()],
+            'is_staff': user.is_staff
         }, status=status.HTTP_200_OK)
 
 
