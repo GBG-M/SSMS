@@ -54,73 +54,73 @@ export default function TeacherDashboard() {
   }
 
   useEffect(() => {
+    async function loadTeacherData() {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        navigate('/login')
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError('')
+
+        const headers = {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        }
+
+        // 1. Load user profile
+        const profRes = await fetch('/api/accounts/profile/', { headers })
+        if (!profRes.ok) {
+          if (profRes.status === 401) {
+            navigate('/login')
+            return
+          }
+          throw new Error('Failed to load faculty profile.')
+        }
+        const profData = await profRes.json()
+        setProfile(profData)
+
+        // 2. Load assigned classes
+        const classesRes = await fetch(`/api/academics/class-sections/?teacher=${profData.id}`, { headers })
+        let classData = []
+        if (classesRes.ok) {
+          const json = await classesRes.json()
+          classData = Array.isArray(json) ? json : json.results || []
+          setMyClasses(classData)
+          if (classData.length > 0) {
+            setAttendanceSectionId(String(classData[0].id))
+            setAssessmentForm((prev) => ({ ...prev, class_section: String(classData[0].id) }))
+          }
+        }
+
+        // 3. Load teaching schedules
+        const schedRes = await fetch('/api/scheduling/class-schedules/', { headers })
+        if (schedRes.ok) {
+          const json = await schedRes.json()
+          const allSched = Array.isArray(json) ? json : json.results || []
+          setSchedules(allSched)
+        }
+
+        // 4. Load assessments
+        const assessRes = await fetch('/api/academics/assessments/', { headers })
+        if (assessRes.ok) {
+          const json = await assessRes.json()
+          const allAssess = Array.isArray(json) ? json : json.results || []
+          setAssessments(allAssess)
+        }
+
+      } catch (err) {
+        console.error('Teacher dashboard load error:', err)
+        setError(err.message || 'Error loading faculty dashboard.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
     loadTeacherData()
-  }, [])
-
-  async function loadTeacherData() {
-    const token = localStorage.getItem('authToken')
-    if (!token) {
-      navigate('/login')
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError('')
-
-      const headers = {
-        Authorization: `Token ${token}`,
-        'Content-Type': 'application/json',
-      }
-
-      // 1. Load user profile
-      const profRes = await fetch('/api/accounts/profile/', { headers })
-      if (!profRes.ok) {
-        if (profRes.status === 401) {
-          navigate('/login')
-          return
-        }
-        throw new Error('Failed to load faculty profile.')
-      }
-      const profData = await profRes.json()
-      setProfile(profData)
-
-      // 2. Load assigned classes
-      const classesRes = await fetch(`/api/academics/class-sections/?teacher=${profData.id}`, { headers })
-      let classData = []
-      if (classesRes.ok) {
-        const json = await classesRes.json()
-        classData = Array.isArray(json) ? json : json.results || []
-        setMyClasses(classData)
-        if (classData.length > 0) {
-          setAttendanceSectionId(String(classData[0].id))
-          setAssessmentForm((prev) => ({ ...prev, class_section: String(classData[0].id) }))
-        }
-      }
-
-      // 3. Load teaching schedules
-      const schedRes = await fetch('/api/scheduling/class-schedules/', { headers })
-      if (schedRes.ok) {
-        const json = await schedRes.json()
-        const allSched = Array.isArray(json) ? json : json.results || []
-        setSchedules(allSched)
-      }
-
-      // 4. Load assessments
-      const assessRes = await fetch('/api/academics/assessments/', { headers })
-      if (assessRes.ok) {
-        const json = await assessRes.json()
-        const allAssess = Array.isArray(json) ? json : json.results || []
-        setAssessments(allAssess)
-      }
-
-    } catch (err) {
-      console.error('Teacher dashboard load error:', err)
-      setError(err.message || 'Error loading faculty dashboard.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [navigate])
 
   // Load roster when attendance section changes
   useEffect(() => {
@@ -396,7 +396,13 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {/* Global Error Banner */}
+        {/* Global Loading / Error Banner */}
+        {loading && (
+          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+            <span>Loading faculty schedule, classes, and roster records...</span>
+          </div>
+        )}
         {error && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}

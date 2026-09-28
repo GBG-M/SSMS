@@ -19,156 +19,150 @@ export default function Dashboard() {
     navigate('/login')
   }
 
+  const clearAuthSession = () => {
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('userEmail')
+    localStorage.removeItem('userProfile')
+  }
+
   useEffect(() => {
-    fetchProfile()
-  }, [])
+    async function fetchDashboardData() {
+      const token = localStorage.getItem('authToken')
 
-  async function fetchProfile() {
-    const token = localStorage.getItem('authToken')
+      if (!token) {
+        navigate('/login')
+        return
+      }
 
-    if (!token) {
-      navigate('/login')
-      return
-    }
-
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/profile/`,
-        {
+      try {
+        const response = await fetch(`${API_BASE_URL}/profile/`, {
           method: 'GET',
           headers: {
             Authorization: `Token ${token}`,
             'Content-Type': 'application/json',
           },
-        }
-      )
+        })
 
-      const data = await response.json()
-
-      if (response.status === 401) {
-        localStorage.removeItem('authToken')
-        localStorage.removeItem('userEmail')
-        navigate('/login')
-        return
-      }
-
-      if (!response.ok) {
-        console.error(
-          'Failed to load profile:',
-          data
-        )
-        return
-      }
-
-      setProfile(data)
-      localStorage.setItem('userProfile', JSON.stringify(data))
-
-      // If user is a student, teacher, or parent without administrative staff privileges,
-      // redirect them to their dedicated dashboard portal.
-      const roles = (data.role_names || []).map(r => String(r).toLowerCase())
-      const isStaffOrAdmin = Boolean(data.is_staff || data.is_superuser || roles.includes('admin') || roles.includes('academic_coordinator'))
-
-      if (!isStaffOrAdmin) {
-        if (roles.includes('student')) {
-          navigate('/student/dashboard', { replace: true })
+        if (response.status === 401) {
+          clearAuthSession()
+          navigate('/login')
           return
         }
-        if (roles.includes('teacher')) {
-          navigate('/teacher/dashboard', { replace: true })
+
+        const data = await response.json()
+        if (!response.ok) {
+          console.error('Failed to load profile:', data)
           return
         }
-        if (roles.includes('parent')) {
-          navigate('/parent/dashboard', { replace: true })
-          return
+
+        setProfile(data)
+        localStorage.setItem('userProfile', JSON.stringify(data))
+
+        // redirect them to their dedicated dashboard portal.
+        const roles = (data.role_names || []).map(r => String(r).toLowerCase())
+        const isStaffOrAdmin = Boolean(data.is_staff || data.is_superuser || roles.includes('admin') || roles.includes('academic_coordinator'))
+
+        if (!isStaffOrAdmin) {
+          if (roles.includes('student')) {
+            navigate('/student/dashboard', { replace: true })
+            return
+          }
+          if (roles.includes('teacher')) {
+            navigate('/teacher/dashboard', { replace: true })
+            return
+          }
+          if (roles.includes('parent')) {
+            navigate('/parent/dashboard', { replace: true })
+            return
+          }
         }
+
+        // Fetch live dashboard statistics across modules
+        try {
+          const statsRes = await fetch('/api/students/students/statistics/', {
+            headers: {
+              Authorization: `Token ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+          if (statsRes.ok) {
+            const statsData = await statsRes.json()
+            setStudentStats(statsData)
+          }
+        } catch {}
+
+        try {
+          const sectionsRes = await fetch('/api/academics/class-sections/', {
+            headers: {
+              Authorization: `Token ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+          if (sectionsRes.ok) {
+            const sectionsData = await sectionsRes.json()
+            const sectionsList = Array.isArray(sectionsData) ? sectionsData : (sectionsData.results || [])
+            setClassesCount(sectionsList.length)
+            const assignedTeachers = new Set(sectionsList.map(s => s.teacher).filter(Boolean))
+            if (assignedTeachers.size > 0) {
+              setTeacherCount(assignedTeachers.size)
+            }
+          }
+        } catch {}
+
+        try {
+          const usersRes = await fetch('/api/accounts/users/', {
+            headers: {
+              Authorization: `Token ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+          if (usersRes.ok) {
+            const usersData = await usersRes.json()
+            const usersList = Array.isArray(usersData) ? usersData : (usersData.users || usersData.results || [])
+            const teachers = usersList.filter(u =>
+              (u.role_names && u.role_names.some(r => r.toLowerCase() === 'teacher')) ||
+              (u.roles && u.roles.some(r => (r.name || r).toLowerCase() === 'teacher'))
+            )
+            if (teachers.length > 0) {
+              setTeacherCount(teachers.length)
+            }
+          }
+        } catch {}
+
+        try {
+          const attRes = await fetch('/api/students/attendance/', {
+            headers: {
+              Authorization: `Token ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+          if (attRes.ok) {
+            const attData = await attRes.json()
+            const attList = Array.isArray(attData) ? attData : (attData.results || [])
+            if (attList.length > 0) {
+              const present = attList.filter(a => a.status === 'PRESENT').length
+              const rate = Math.round((present / attList.length) * 100)
+              setAttendanceStats({
+                rate: `${rate}%`,
+                label: `${attList.length} logs recorded`,
+              })
+            } else {
+              setAttendanceStats({
+                rate: '100%',
+                label: 'No absences recorded',
+              })
+            }
+          }
+        } catch {}
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err)
+      } finally {
+        setLoadingProfile(false)
       }
-
-      // Fetch live dashboard statistics across modules
-      try {
-        const statsRes = await fetch('/api/students/students/statistics/', {
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-        if (statsRes.ok) {
-          const statsData = await statsRes.json()
-          setStudentStats(statsData)
-        }
-      } catch {}
-
-      try {
-        const sectionsRes = await fetch('/api/academics/class-sections/', {
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-        if (sectionsRes.ok) {
-          const sectionsData = await sectionsRes.json()
-          const sectionsList = Array.isArray(sectionsData) ? sectionsData : (sectionsData.results || [])
-          setClassesCount(sectionsList.length)
-          const assignedTeachers = new Set(sectionsList.map(s => s.teacher).filter(Boolean))
-          if (assignedTeachers.size > 0) {
-            setTeacherCount(assignedTeachers.size)
-          }
-        }
-      } catch {}
-
-      try {
-        const usersRes = await fetch('/api/accounts/users/', {
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-        if (usersRes.ok) {
-          const usersData = await usersRes.json()
-          const usersList = Array.isArray(usersData) ? usersData : (usersData.users || usersData.results || [])
-          const teachers = usersList.filter(u =>
-            (u.role_names && u.role_names.some(r => r.toLowerCase() === 'teacher')) ||
-            (u.roles && u.roles.some(r => (r.name || r).toLowerCase() === 'teacher'))
-          )
-          if (teachers.length > 0) {
-            setTeacherCount(teachers.length)
-          }
-        }
-      } catch {}
-
-      try {
-        const attRes = await fetch('/api/students/attendance/', {
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-        if (attRes.ok) {
-          const attData = await attRes.json()
-          const attList = Array.isArray(attData) ? attData : (attData.results || [])
-          if (attList.length > 0) {
-            const present = attList.filter(a => a.status === 'PRESENT').length
-            const rate = Math.round((present / attList.length) * 100)
-            setAttendanceStats({
-              rate: `${rate}%`,
-              label: `${attList.length} logs recorded`,
-            })
-          } else {
-            setAttendanceStats({
-              rate: '100%',
-              label: 'No absences recorded',
-            })
-          }
-        }
-      } catch {}
-    } catch (error) {
-      console.error(
-        'Profile request failed:',
-        error
-      )
-    } finally {
-      setLoadingProfile(false)
     }
-  }
+
+    fetchDashboardData()
+  }, [navigate])
 
   const displayName =
     profile?.full_name ||
@@ -336,9 +330,9 @@ export default function Dashboard() {
                   ? 'Loading...'
                   : displayName}
               </p>
-
-          
-
+              {displayEmail && (
+                <p className="text-xs text-slate-500">{displayEmail}</p>
+              )}
             </div>
 
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">

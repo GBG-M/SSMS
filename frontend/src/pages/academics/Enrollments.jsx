@@ -328,9 +328,18 @@ export default function Enrollments() {
                         {enr.enrolled_on}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusBadge(enr.status)}`}>
-                          {enr.status}
-                        </span>
+                        <select
+                          value={enr.status}
+                          onChange={(e) => handleQuickStatusChange(enr, e.target.value)}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border cursor-pointer outline-none transition ${getStatusBadge(enr.status)}`}
+                          title="Quick update enrollment status"
+                        >
+                          {statuses.map((st) => (
+                            <option key={st} value={st} className="bg-white text-slate-800">
+                              {st}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-6 py-4 text-xs text-slate-500 max-w-xs truncate">
                         {enr.remarks || '—'}

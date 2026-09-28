@@ -29,6 +29,7 @@ export default function Profile() {
   // Load current user's profile
   useEffect(() => {
     fetchProfile()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function fetchProfile() {

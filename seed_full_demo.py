@@ -134,7 +134,7 @@ parent_profile.students.add(student_profile)
 
 # 6. Academics Data
 acad_year, _ = AcademicYear.objects.get_or_create(
-    name='2025/2026 Academic Year',
+    name='2025/2026',
     defaults={
         'start_date': date(2025, 9, 1),
         'end_date': date(2026, 6, 30),

@@ -26,56 +26,56 @@ export default function ParentDashboard() {
   }
 
   useEffect(() => {
+    async function loadParentProfile() {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        navigate('/login')
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError('')
+
+        const headers = {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        }
+
+        // 1. Fetch parent user profile
+        const profRes = await fetch('/api/accounts/profile/', { headers })
+        if (!profRes.ok) {
+          if (profRes.status === 401) {
+            navigate('/login')
+            return
+          }
+          throw new Error('Failed to load parent profile.')
+        }
+        const profData = await profRes.json()
+        setProfile(profData)
+
+        // Get children list
+        let kids = profData.children || []
+        // Fallback: If children array was empty on profile, fetch students linked to parent
+        if (kids.length === 0) {
+          const studentsRes = await fetch('/api/students/students/', { headers })
+          if (studentsRes.ok) {
+            const json = await studentsRes.json()
+            kids = Array.isArray(json) ? json : json.results || []
+          }
+        }
+
+        setChildrenList(kids)
+      } catch (err) {
+        console.error('Parent dashboard load error:', err)
+        setError(err.message || 'Error loading parent portal.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
     loadParentProfile()
-  }, [])
-
-  async function loadParentProfile() {
-    const token = localStorage.getItem('authToken')
-    if (!token) {
-      navigate('/login')
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError('')
-
-      const headers = {
-        Authorization: `Token ${token}`,
-        'Content-Type': 'application/json',
-      }
-
-      // 1. Fetch parent user profile
-      const profRes = await fetch('/api/accounts/profile/', { headers })
-      if (!profRes.ok) {
-        if (profRes.status === 401) {
-          navigate('/login')
-          return
-        }
-        throw new Error('Failed to load parent profile.')
-      }
-      const profData = await profRes.json()
-      setProfile(profData)
-
-      // Get children list
-      let kids = profData.children || []
-      // Fallback: If children array was empty on profile, fetch students linked to parent
-      if (kids.length === 0) {
-        const studentsRes = await fetch('/api/students/students/', { headers })
-        if (studentsRes.ok) {
-          const json = await studentsRes.json()
-          kids = Array.isArray(json) ? json : json.results || []
-        }
-      }
-
-      setChildrenList(kids)
-    } catch (err) {
-      console.error('Parent dashboard load error:', err)
-      setError(err.message || 'Error loading parent portal.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [navigate])
 
   // Load records for currently selected child
   const selectedChild = childrenList[selectedChildIndex] || null
@@ -139,7 +139,7 @@ export default function ParentDashboard() {
     }
 
     loadChildData()
-  }, [selectedChildIndex, childrenList])
+  }, [selectedChild])
 
   // Attendance metrics
   const totalDays = childAttendance.length
@@ -235,7 +235,13 @@ export default function ParentDashboard() {
           </div>
         </div>
 
-        {/* Global Error */}
+        {/* Global Loading / Error */}
+        {loading && (
+          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+            <span>Loading guardian profile and academic data...</span>
+          </div>
+        )}
         {error && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
@@ -760,6 +766,53 @@ export default function ParentDashboard() {
                                   }`}
                                 >
                                   {inv.status || 'PENDING'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Assigned Fee Commitments */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">Fee Commitments & Allocations</h3>
+                  <p className="text-xs text-slate-500 mb-4">Assigned tuition, laboratory, and activity dues.</p>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
+                        <tr>
+                          <th className="px-5 py-3.5">Fee Type</th>
+                          <th className="px-5 py-3.5">Academic Year</th>
+                          <th className="px-5 py-3.5">Amount Due</th>
+                          <th className="px-5 py-3.5">Amount Paid</th>
+                          <th className="px-5 py-3.5 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {childFees.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-sm text-slate-400">
+                              No individual fee commitments assigned.
+                            </td>
+                          </tr>
+                        ) : (
+                          childFees.map((fee) => (
+                            <tr key={fee.id} className="hover:bg-slate-50/50">
+                              <td className="px-5 py-3.5 font-bold text-slate-900">{fee.fee_name || 'Tuition'}</td>
+                              <td className="px-5 py-3.5 text-xs text-slate-500">{fee.academic_year || 'Current'}</td>
+                              <td className="px-5 py-3.5 font-semibold text-slate-900">
+                                ${parseFloat(fee.amount_due || 0).toFixed(2)}
+                              </td>
+                              <td className="px-5 py-3.5 font-semibold text-emerald-600">
+                                ${parseFloat(fee.amount_paid || 0).toFixed(2)}
+                              </td>
+                              <td className="px-5 py-3.5 text-center">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold capitalize bg-slate-100 text-slate-700">
+                                  {fee.status || 'pending'}
                                 </span>
                               </td>
                             </tr>

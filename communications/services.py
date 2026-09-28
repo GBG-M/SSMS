@@ -196,6 +196,18 @@ def get_eligible_contacts_for_user(user: User) -> Dict[str, Any]:
             is_active=True
         ).select_related('subject')
 
+        admin_users = User.objects.filter(roles__name__in=[Role.ADMIN, Role.ACADEMIC_COORDINATOR]).distinct()
+        staff_recipients = [
+            {
+                'id': admin.id,
+                'name': f"{admin.full_name or admin.email} (School Office)",
+                'email': admin.email,
+                'relationship': 'Administration',
+                'phone': ''
+            }
+            for admin in admin_users
+        ]
+
         sections_data = []
         for sec in taught_sections:
             students = Student.objects.filter(
@@ -220,7 +232,7 @@ def get_eligible_contacts_for_user(user: User) -> Dict[str, Any]:
                     'student_id': stu.id,
                     'student_code': stu.student_id,
                     'name': stu.full_name,
-                    'parents': parents_list
+                    'parents': parents_list + staff_recipients
                 })
 
             sections_data.append({
@@ -232,7 +244,53 @@ def get_eligible_contacts_for_user(user: User) -> Dict[str, Any]:
 
         return {'role': Role.TEACHER, 'sections': sections_data}
 
-    # 3. Admin / Staff context
+    # 3. Student context
+    if Role.STUDENT in role_names:
+        student_obj = getattr(user, 'student_profile', None) or Student.objects.filter(user=user).first()
+        teachers_list = []
+        if student_obj:
+            sections = ClassSection.objects.filter(
+                enrollments__student=student_obj,
+                enrollments__status='ACTIVE',
+                is_active=True
+            ).select_related('teacher', 'subject')
+            seen_teachers = set()
+            for sec in sections:
+                if sec.teacher and sec.teacher.id not in seen_teachers:
+                    seen_teachers.add(sec.teacher.id)
+                    teachers_list.append({
+                        'id': sec.teacher.id,
+                        'name': sec.teacher.full_name or sec.teacher.email,
+                        'email': sec.teacher.email,
+                        'role': 'TEACHER',
+                        'subject': sec.subject.name,
+                        'section': sec.name
+                    })
+
+        admin_users = User.objects.filter(roles__name__in=[Role.ADMIN, Role.ACADEMIC_COORDINATOR]).distinct()
+        staff_list = [
+            {
+                'id': admin.id,
+                'name': f"{admin.full_name or admin.email} (School Office)",
+                'email': admin.email,
+                'role': 'STAFF',
+                'subject': 'Administration',
+                'section': 'General'
+            }
+            for admin in admin_users
+        ]
+
+        return {
+            'role': Role.STUDENT,
+            'student_id': student_obj.id if student_obj else None,
+            'student_code': student_obj.student_id if student_obj else '',
+            'name': student_obj.full_name if student_obj else user.full_name,
+            'grade': student_obj.current_grade if student_obj else '',
+            'class_name': student_obj.current_class if student_obj else '',
+            'eligible_recipients': teachers_list + staff_list
+        }
+
+    # 4. Admin / Staff context
     all_teachers = User.objects.filter(roles__name=Role.TEACHER).distinct()
     all_students = Student.objects.all()[:100]
     return {

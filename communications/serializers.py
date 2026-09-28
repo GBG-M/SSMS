@@ -165,6 +165,7 @@ class ConversationThreadCreateSerializer(serializers.Serializer):
         is_staff_user = bool(role_names.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
         is_teacher_user = Role.TEACHER in role_names and not is_staff_user
         is_parent_user = Role.PARENT in role_names and not is_staff_user
+        is_student_user = Role.STUDENT in role_names and not is_staff_user and not is_teacher_user and not is_parent_user
 
         if is_parent_user:
             # Must be a parent of this student
@@ -217,6 +218,33 @@ class ConversationThreadCreateSerializer(serializers.Serializer):
             if not is_staff_recipient and not is_parent_recipient:
                 raise serializers.ValidationError({
                     "recipient_id": "Recipients must be registered guardians of this student or school administrators."
+                })
+
+        elif is_student_user:
+            student_obj = getattr(user, 'student_profile', None) or Student.objects.filter(user=user).first()
+            if not student_obj or student_obj.id != student.id:
+                raise serializers.ValidationError({
+                    "student_id": "You can only create inquiries regarding your own student enrollment."
+                })
+
+            recipient_roles = {r.name for r in recipient.roles.all()}
+            is_staff_recipient = bool(recipient_roles.intersection({Role.ADMIN, Role.ACADEMIC_COORDINATOR}))
+            is_teacher_recipient = Role.TEACHER in recipient_roles
+
+            if not is_staff_recipient and is_teacher_recipient:
+                teaches_student = ClassSection.objects.filter(
+                    teacher=recipient,
+                    enrollments__student=student,
+                    enrollments__status='ACTIVE',
+                    is_active=True
+                ).exists()
+                if not teaches_student:
+                    raise serializers.ValidationError({
+                        "recipient_id": "This teacher does not currently teach any active classes for you."
+                    })
+            elif not is_staff_recipient:
+                raise serializers.ValidationError({
+                    "recipient_id": "Recipients must be verified teachers of your active classes or school administrators."
                 })
 
         return attrs

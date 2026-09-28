@@ -122,6 +122,12 @@ export default function FinanceDashboard() {
       actions={headerActions}
     >
       {/* Alert Messages */}
+      {loading && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+          <span>Synchronizing financial records and analytics...</span>
+        </div>
+      )}
       {error && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex justify-between items-center">
           <span>{error}</span>
@@ -155,7 +161,7 @@ export default function FinanceDashboard() {
             ${totalCollected.toFixed(2)}
           </p>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="font-semibold text-emerald-600">{collectionRate}%</span> collection efficiency
+            <span className="font-semibold text-emerald-600">{collectionRate}%</span> efficiency ({paidCount} settled)
           </div>
         </div>
 

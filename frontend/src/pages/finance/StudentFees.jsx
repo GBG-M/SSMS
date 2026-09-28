@@ -139,6 +139,32 @@ export default function StudentFees() {
     setDeletingId(null)
   }
 
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    if (!editingFee) return
+    setSubmitting(true)
+    setError(null)
+
+    const payload = {
+      amount_due: parseFloat(editingFee.amount_due),
+      due_date: editingFee.due_date,
+      academic_year: editingFee.academic_year,
+      status: editingFee.status,
+    }
+
+    const result = await updateStudentFee(editingFee.id, payload)
+    if (!result.ok) {
+      setError(result.error || 'Failed to update student fee record.')
+      setSubmitting(false)
+      return
+    }
+
+    setSuccess('Student fee record updated successfully!')
+    setEditingFee(null)
+    await loadAllData()
+    setSubmitting(false)
+  }
+
   // Calculate Summary
   const totals = fees.reduce(
     (acc, f) => ({
@@ -341,6 +367,25 @@ export default function StudentFees() {
                           </button>
                         )}
                         <button
+                          onClick={() => {
+                            setEditingFee({
+                              id: fee.id,
+                              student_name: fee.student_name,
+                              fee_name: fee.fee_name,
+                              amount_due: fee.amount_due,
+                              due_date: fee.due_date ? String(fee.due_date).split('T')[0] : '',
+                              academic_year: fee.academic_year || '2025/2026',
+                              status: fee.status || 'pending',
+                            })
+                            setError(null)
+                            setSuccess(null)
+                          }}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                          title="Edit fee record"
+                        >
+                          ✏️
+                        </button>
+                        <button
                           onClick={() => handleDelete(fee.id)}
                           disabled={deletingId === fee.id}
                           className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition disabled:opacity-50"
@@ -468,6 +513,106 @@ export default function StudentFees() {
                   className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-600/30 hover:bg-emerald-700 transition disabled:opacity-50"
                 >
                   {submitting ? 'Assigning...' : 'Assign Fee'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Edit Fee Modal */}
+      {editingFee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Edit Student Fee</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingFee.student_name} — {editingFee.fee_name}
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingFee(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+                  Amount Due ($) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editingFee.amount_due}
+                  onChange={(e) => setEditingFee({ ...editingFee, amount_due: e.target.value })}
+                  required
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+                    Academic Year *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingFee.academic_year}
+                    onChange={(e) => setEditingFee({ ...editingFee, academic_year: e.target.value })}
+                    required
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={editingFee.status}
+                    onChange={(e) => setEditingFee({ ...editingFee, status: e.target.value })}
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="partial">Partial</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="waived">Waived</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+                  Due Date *
+                </label>
+                <input
+                  type="date"
+                  value={editingFee.due_date}
+                  onChange={(e) => setEditingFee({ ...editingFee, due_date: e.target.value })}
+                  required
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingFee(null)}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-600/30 hover:bg-emerald-700 transition disabled:opacity-50"
+                >
+                  {submitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

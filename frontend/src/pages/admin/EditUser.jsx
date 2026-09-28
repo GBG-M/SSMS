@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getSystemRoles, updateUserRoles } from '../../services/authService'
+import { updateUserRoles } from '../../services/authService'
 
 const API_BASE_URL = '/api/accounts'
 
@@ -42,6 +42,7 @@ export default function EditUser() {
 
   useEffect(() => {
     fetchUser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   useEffect(() => {

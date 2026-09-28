@@ -29,6 +29,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
   const isParent = normalizedRole === 'PARENT'
   const isTeacher = normalizedRole === 'TEACHER'
   const isStaff = normalizedRole === 'ADMIN' || normalizedRole === 'STAFF' || normalizedRole === 'ACADEMIC_COORDINATOR'
+  const isStudent = normalizedRole === 'STUDENT'
 
   const [viewMode, setViewMode] = useState('threads') // 'threads' | 'notices'
   const [threads, setThreads] = useState([])
@@ -39,8 +40,10 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
   const [searchQuery, setSearchQuery] = useState('')
   const [replyText, setReplyText] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+
+  // Feedback banner states
   const [successMessage, setSuccessMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
 
   // Parent child filter toggle
   const [childFilterId, setChildFilterId] = useState(selectedChild?.id ? String(selectedChild.id) : 'all')
@@ -76,6 +79,10 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [selectedThread?.messages])
+
+  useEffect(() => {
     if (selectedChild?.id && isParent) {
       setChildFilterId(String(selectedChild.id))
       setInquiryForm((prev) => ({ ...prev, student_id: selectedChild.id }))
@@ -86,6 +93,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
     loadThreads()
     loadContacts()
     loadAnnouncementsList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalizedRole, statusFilter, childFilterId])
 
   // Live polling for threads and messages every 6 seconds
@@ -101,6 +109,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
     }, 6000)
 
     return () => clearInterval(pollInterval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedThread?.id, statusFilter, childFilterId])
 
   async function loadThreads() {
@@ -155,6 +164,13 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
       // Auto-set section if teacher
       if (data?.role === 'teacher' && data.sections?.length > 0) {
         setSelectedSectionId(String(data.sections[0].section_id))
+      }
+      // Auto-set student if student
+      if (data?.role === 'student' && data.student_id) {
+        setInquiryForm((prev) => ({
+          ...prev,
+          student_id: data.student_id,
+        }))
       }
     } catch (err) {
       console.error('Failed to load contacts:', err)
@@ -368,7 +384,7 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
           </div>
 
           {/* Primary Action Button based on Role */}
-          {isParent && (
+          {(isParent || isStudent) && (
             <button
               onClick={() => setShowInquiryModal(true)}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-indigo-700 transition"
@@ -412,6 +428,14 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
           )}
         </div>
       </div>
+
+      {/* Error Alert Banner */}
+      {errorMessage && (
+        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-800">
+          <span>{errorMessage}</span>
+          <button onClick={() => setErrorMessage('')} className="ml-2 font-bold text-red-500 hover:text-red-700">✕</button>
+        </div>
+      )}
 
       {/* Success Alert Banner */}
       {successMessage && (
@@ -757,6 +781,8 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                   ? 'Start New Inquiry / Message Teacher'
                   : isTeacher
                   ? 'Message Parent / Guardian'
+                  : isStudent
+                  ? 'Inquire with Teacher or School Office'
                   : 'Start Institutional Inquiry'}
               </h3>
               <button
@@ -921,6 +947,35 @@ export default function CommunicationsHub({ userRole = 'PARENT', selectedChild =
                       {contactsData?.teachers?.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name} (Teacher) - {t.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* STUDENT WORKFLOW: Auto-identified Student -> Select Teacher / Administration */}
+              {isStudent && (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Student</label>
+                    <div className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 font-semibold text-slate-700">
+                      {contactsData?.name || 'Your Account'} {contactsData?.student_code ? `(${contactsData.student_code})` : ''}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Recipient (Teacher or School Office)</label>
+                    <select
+                      value={inquiryForm.recipient_id}
+                      onChange={(e) => setInquiryForm((prev) => ({ ...prev, recipient_id: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">-- Select Recipient --</option>
+                      {contactsData?.eligible_recipients?.map((rec) => (
+                        <option key={rec.id} value={rec.id}>
+                          {rec.name} — {rec.subject} ({rec.section || rec.role})
                         </option>
                       ))}
                     </select>

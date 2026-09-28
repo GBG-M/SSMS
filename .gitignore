@@ -10,12 +10,18 @@ __pycache__/
 # Django
 *.log
 db.sqlite3
+staticfiles/
 media/
 student_documents/
 student_profiles/
 
+# Installers & Binaries
+*.msi
+*.exe
+
 # Environment variables
 .env
+.env.local
 
 # VS Code
 .vscode/

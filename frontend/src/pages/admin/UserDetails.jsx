@@ -20,6 +20,7 @@ export default function UserDetails() {
 
   useEffect(() => {
     fetchUserData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   async function fetchUserData() {
